@@ -8,12 +8,12 @@
   <groupId>net.pibenchmark</groupId>
   <artifactId>soap-to-jpa-maven-plugin</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <goalPrefix>plugin</goalPrefix>
+  <goalPrefix>soap-to-jpa</goalPrefix>
   <isolatedRealm>false</isolatedRealm>
   <inheritedByDefault>true</inheritedByDefault>
   <mojos>
     <mojo>
-      <goal>generate-sources</goal>
+      <goal>soap-to-jpa</goal>
       <requiresDirectInvocation>false</requiresDirectInvocation>
       <requiresProject>true</requiresProject>
       <requiresReports>false</requiresReports>
@@ -27,56 +27,6 @@
       <executionStrategy>once-per-session</executionStrategy>
       <threadSafe>false</threadSafe>
       <parameters/>
-    </mojo>
-    <mojo>
-      <goal>soap-to-jpa</goal>
-      <requiresDirectInvocation>false</requiresDirectInvocation>
-      <requiresProject>true</requiresProject>
-      <requiresReports>false</requiresReports>
-      <aggregator>false</aggregator>
-      <requiresOnline>false</requiresOnline>
-      <inheritedByDefault>true</inheritedByDefault>
-      <implementation>net.pibenchmark.SoapToJpaMojo</implementation>
-      <language>java</language>
-      <instantiationStrategy>per-lookup</instantiationStrategy>
-      <executionStrategy>once-per-session</executionStrategy>
-      <threadSafe>false</threadSafe>
-      <parameters>
-        <parameter>
-          <name>basedir</name>
-          <type>java.io.File</type>
-          <required>false</required>
-          <editable>false</editable>
-          <description>BaseDir of a project, where from this plugin is called</description>
-        </parameter>
-        <parameter>
-          <name>project</name>
-          <type>org.apache.maven.project.MavenProject</type>
-          <required>false</required>
-          <editable>false</editable>
-          <description>Reference to a project, where the current plugin is used</description>
-        </parameter>
-        <parameter>
-          <name>settings</name>
-          <type>org.apache.maven.settings.Settings</type>
-          <required>false</required>
-          <editable>false</editable>
-          <description></description>
-        </parameter>
-        <parameter>
-          <name>target</name>
-          <type>java.io.File</type>
-          <required>false</required>
-          <editable>false</editable>
-          <description></description>
-        </parameter>
-      </parameters>
-      <configuration>
-        <basedir implementation="java.io.File" default-value="${project.basedir}"/>
-        <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
-        <settings implementation="org.apache.maven.settings.Settings" default-value="${settings}"/>
-        <target implementation="java.io.File" default-value="${project.build.directory}"/>
-      </configuration>
     </mojo>
   </mojos>
   <dependencies>
@@ -265,6 +215,12 @@
       <artifactId>maven-plugin-annotations</artifactId>
       <type>jar</type>
       <version>3.3</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.persistence</groupId>
+      <artifactId>persistence-api</artifactId>
+      <type>jar</type>
+      <version>1.0.2</version>
     </dependency>
   </dependencies>
 </plugin>

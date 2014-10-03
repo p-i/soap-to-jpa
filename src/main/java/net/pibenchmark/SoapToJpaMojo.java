@@ -1,26 +1,20 @@
 package net.pibenchmark;
 
 import com.thoughtworks.qdox.JavaProjectBuilder;
+import com.thoughtworks.qdox.model.JavaClass;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
-
-import com.thoughtworks.qdox.model.DocletTag;
-import com.thoughtworks.qdox.model.JavaClass;
-import com.thoughtworks.qdox.model.JavaMethod;
-import com.thoughtworks.qdox.model.JavaParameter;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.settings.Settings;
-import sun.tools.jar.resources.jar_sv;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 /**
- * @goal generate-sources
+ * @goal soap-to-jpa
  * @phase generate-sources
  */
 @Mojo( name = "soap-to-jpa")
@@ -77,14 +71,13 @@ public class SoapToJpaMojo extends AbstractMojo {
 
     }
 
-
     /**
      * Creates output directory for generated JPA stubs
      *
      * @return path
      */
     private File ensureOutputDirExists() {
-        final String strJPAoutputDir = new StringBuilder(target.getAbsolutePath())
+        final String strJPAoutputDir = new StringBuilder(this.target.getAbsolutePath())
                 .append(File.separator)
                 .append("generated-sources")
                 .append(File.separator)

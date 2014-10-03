@@ -18,6 +18,7 @@
         <maven.tools.version>3.3</maven.tools.version>
         <maven.toolchain.version>2.0.11</maven.toolchain.version>
         <qdox.version>2.0-M2</qdox.version>
+        <persistence.version>1.0.2</persistence.version>
     </properties>
 
     <developers>
@@ -67,6 +68,11 @@
             <version>${maven.tools.version}</version>
         </dependency>
         <dependency>
+            <groupId>javax.persistence</groupId>
+            <artifactId>persistence-api</artifactId>
+            <version>${persistence.version}</version>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.7</version>
@@ -89,7 +95,7 @@
                 <artifactId>maven-plugin-plugin</artifactId>
                 <version>3.3</version>
                 <configuration>
-                    <goalPrefix>plugin</goalPrefix>
+                    <goalPrefix>soap-to-jpa</goalPrefix>
                     <outputDirectory>${project.basedir}/src/main/resources/META-INF/maven</outputDirectory>
                 </configuration>
             </plugin>
