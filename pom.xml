@@ -1,0 +1,100 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>net.pibenchmark</groupId>
+  <artifactId>soap-to-jpa-maven-plugin</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <description>Plugin to generate JPA entities from SOAP stubs in order to save them to a database</description>
+  <name>soap-to-jpa-maven-plugin</name>
+  <url>http://maven.apache.org</url>
+
+  <packaging>maven-plugin</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>1.8</java.version>
+        <maven.version>3.2.3</maven.version>
+        <maven.tools.version>3.3</maven.tools.version>
+        <maven.toolchain.version>2.0.11</maven.toolchain.version>
+        <qdox.version>2.0-M2</qdox.version>
+    </properties>
+
+    <developers>
+        <developer>
+            <id>ilja</id>
+            <name>Ilja Hämäläinen</name>
+            <email>ilja@p-i.net</email>
+            <url>http://p-i.net</url>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>GNU License</name>
+        </license>
+    </licenses>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/p-i/soap-to-jpa/issues</url>
+    </issueManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-plugin-api</artifactId>
+            <version>${maven.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-toolchain</artifactId>
+            <version>${maven.toolchain.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.thoughtworks.qdox</groupId>
+            <artifactId>qdox</artifactId>
+            <version>${qdox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven.tools.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.7</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <version>3.3</version>
+                <configuration>
+                    <goalPrefix>plugin</goalPrefix>
+                    <outputDirectory>${project.basedir}/src/main/resources/META-INF/maven</outputDirectory>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
