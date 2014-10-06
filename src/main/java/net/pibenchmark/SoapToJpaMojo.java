@@ -9,14 +9,22 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.settings.Settings;
+import org.apache.velocity.Template;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.VelocityEngine;
+import org.apache.velocity.runtime.RuntimeConstants;
+import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.apache.velocity.tools.generic.DisplayTool;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
+import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
-/**
- * @goal soap-to-jpa
- * @phase generate-sources
- */
 @Mojo( name = "soap-to-jpa")
 public class SoapToJpaMojo extends AbstractMojo {
 
@@ -55,13 +63,43 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         builder.addSourceTree(new File(target.getAbsolutePath() + "/generated-sources/axis2/wsdl2code/src"));
 
+        VelocityEngine ve = new VelocityEngine();
+        ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
+        ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
+        ve.init();
+
+        Template t = ve.getTemplate("JpaEntityTemplate.vm");
+
         try {
+
+            // collect all interfaces to map "interface" <==> "fully qualified name"
+            Map<String, String> mapInterfaces = builder.getClasses()
+                    .stream()
+                    .filter(jc -> !jc.isInner())
+                    .collect(Collectors.toMap(
+                            JavaClass::getName,
+                            jc -> jc.getFullyQualifiedName(),
+                            (a, b) -> a));
+
             for (JavaClass jc : builder.getClasses()) {
-                if (jc.isInterface()) {
+                if (jc.isInterface() && !jc.isInner()) {
 
                     String packagePath = ensurePackageExists(jc);
                     File jpaFile = ensureFileExists(packagePath, jc);
-                    BuildJPAFileContent.buildJPAfor(jc, jpaFile);
+
+                    Map<String, String> mapOfFields = BuildJPAFileContent.buildMapOfFields(jc, mapInterfaces);
+
+                    VelocityContext context = new VelocityContext();
+                    context.put("package", jc.getPackageName());
+                    context.put("className", jc.getName());
+                    context.put("fieldMap", mapOfFields);
+                    context.put("interfaceType", jc.getFullyQualifiedName());
+                    context.put("display", new DisplayTool());
+
+                    StringWriter writer = new StringWriter();
+                    t.merge( context, writer );
+
+                    BuildJPAFileContent.writeContentToFile(writer.toString(), jpaFile);
                 }
             }
         }
