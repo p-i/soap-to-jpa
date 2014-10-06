@@ -27,7 +27,8 @@ public class BuildJPAFileContent {
             int.class.getTypeName());
 
     /**
-     * Builds map "field" <==> "type"
+     * Builds map "field" <==> "type". We take fields only by getters,
+     * because XMLBeans generates other methods, for example xset...()
      *
      * @param jc
      * @param mapInterfaces
@@ -46,14 +47,16 @@ public class BuildJPAFileContent {
     }
 
     /**
-     *
+     * Returns correct type for a method. In the stub a method returns XMLbean name, but we want
+     * that this class should be assigned to according JPA class.
      *
      * @param method
      * @param mapInterfaces
-     * @return
+     * @return type as string
      */
     private static String getReturnType(JavaMethod method, Map<String, String> mapInterfaces) {
         final String strType = method.getReturnType().getCanonicalName();
+
         if (PRIMITIVES.contains(strType)) {
             return method.getReturns().getName();
         }

@@ -26,12 +26,12 @@ public class ${className}JPA {
     /**
      * Constructor, that restores an instance of ${className}JPA from SOAP stub.
      *
-     * @param stub - object of type <code>${interfaceType}</code>
+     * @param stub - instance of type <code>${interfaceType}</code>
      */
     public ${className}JPA(${interfaceType} stub) {
-    #foreach( $field in $fieldMap.keySet() )
+#foreach( $field in $fieldMap.keySet() )
     this.${field} = stub.get${display.capitalize($field)}();
-    #end
+#end
 }
 
     /**

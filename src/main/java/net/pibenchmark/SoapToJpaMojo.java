@@ -19,10 +19,7 @@ import org.apache.velocity.tools.generic.DisplayTool;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.net.URISyntaxException;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Mojo( name = "soap-to-jpa")
@@ -72,34 +69,39 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         try {
 
-            // collect all interfaces to map "interface" <==> "fully qualified name"
+            // collect all interfaces to map "full interface name" <==> "fully qualified JPA name"
             Map<String, String> mapInterfaces = builder.getClasses()
                     .stream()
-                    .filter(jc -> !jc.isInner())
                     .collect(Collectors.toMap(
-                            JavaClass::getName,
-                            jc -> jc.getFullyQualifiedName(),
+                            JavaClass::getCanonicalName,
+                            jc -> getQualifiedName(jc) + "JPA",
                             (a, b) -> a));
 
+            // write all the JPA classes
             for (JavaClass jc : builder.getClasses()) {
-                if (jc.isInterface() && !jc.isInner()) {
+                if (jc.isInterface()) {
 
-                    String packagePath = ensurePackageExists(jc);
-                    File jpaFile = ensureFileExists(packagePath, jc);
+                    final String packageName = jc.isInner() ? jc.getPackageName() + ".inners" : jc.getPackageName();
+                    final String packagePath = ensurePackageExists(packageName);
+                    File jpaFile = getJpaFile(packagePath, jc);
 
-                    Map<String, String> mapOfFields = BuildJPAFileContent.buildMapOfFields(jc, mapInterfaces);
+                    if (!jpaFile.exists()) {
+                        jpaFile.createNewFile();
 
-                    VelocityContext context = new VelocityContext();
-                    context.put("package", jc.getPackageName());
-                    context.put("className", jc.getName());
-                    context.put("fieldMap", mapOfFields);
-                    context.put("interfaceType", jc.getFullyQualifiedName());
-                    context.put("display", new DisplayTool());
+                        Map<String, String> mapOfFields = BuildJPAFileContent.buildMapOfFields(jc, mapInterfaces);
 
-                    StringWriter writer = new StringWriter();
-                    t.merge( context, writer );
+                        VelocityContext context = new VelocityContext();
+                        context.put("package", packageName);
+                        context.put("className", jc.getName());
+                        context.put("fieldMap", mapOfFields);
+                        context.put("interfaceType", getQualifiedName(jc));
+                        context.put("display", new DisplayTool());
 
-                    BuildJPAFileContent.writeContentToFile(writer.toString(), jpaFile);
+                        StringWriter writer = new StringWriter();
+                        t.merge( context, writer );
+
+                        BuildJPAFileContent.writeContentToFile(writer.toString(), jpaFile);
+                    }
                 }
             }
         }
@@ -107,6 +109,17 @@ public class SoapToJpaMojo extends AbstractMojo {
             throw new MojoFailureException(e.getMessage());
         }
 
+    }
+
+    /**
+     * Returns the current package name. In case of inner class, we want to put them to
+     * the subpackage "inners".
+     *
+     * @param jc
+     * @return
+     */
+    private String getQualifiedName(JavaClass jc) {
+        return jc.isInner() ? jc.getPackageName() + ".inners." + jc.getName() : jc.getFullyQualifiedName();
     }
 
     /**
@@ -132,14 +145,14 @@ public class SoapToJpaMojo extends AbstractMojo {
     /**
      * Make sure that package directory exists. If not - create new one
      *
-     * @param jc
+     * @param packageName
      */
-    private String ensurePackageExists(JavaClass jc) {
+    private String ensurePackageExists(String packageName) {
 
         final String absPackagePath = new StringBuilder()
                 .append(this.jpaOutputDirectory.getAbsolutePath())
                 .append(File.separator)
-                .append(jc.getPackageName().replace(".", File.separator))
+                .append(packageName.replace(".", File.separator))
                 .toString();
 
         File newPackage = new File(absPackagePath);
@@ -153,7 +166,7 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @param jc
      * @throws IOException
      */
-    private File ensureFileExists(final String strPackagePath, JavaClass jc) throws IOException {
+    private File getJpaFile(final String strPackagePath, JavaClass jc) throws IOException {
 
         final String absPathJpaFile = new StringBuilder()
                 .append(strPackagePath)
@@ -162,8 +175,6 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .append("JPA.java")
                 .toString();
 
-        File newJpaClass = new File(absPathJpaFile);
-        if (!newJpaClass.exists()) newJpaClass.createNewFile();
-        return newJpaClass;
+        return new File(absPathJpaFile);
     }
 }
