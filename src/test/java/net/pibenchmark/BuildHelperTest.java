@@ -7,19 +7,19 @@ import static org.junit.Assert.assertEquals;
 /**
  * Unit test for simple App.
  */
-public class BuildJPAFileContentTest {
+public class BuildHelperTest {
 
     @Test
     public void testExtractNameFromGetter()
     {
-        String result = BuildJPAFileContent.extractFieldName("getSecondName");
+        String result = BuildHelper.extractFieldName("getSecondName");
         assertEquals("secondName", result);
     }
 
     @Test
     public void testExtractNameFromGetter2()
     {
-        String result = BuildJPAFileContent.extractFieldName("getId");
+        String result = BuildHelper.extractFieldName("getId");
         assertEquals("id", result);
     }
 }

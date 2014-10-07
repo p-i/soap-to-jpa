@@ -1,6 +1,5 @@
 package net.pibenchmark;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.thoughtworks.qdox.JavaProjectBuilder;
@@ -25,13 +24,10 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Mojo( name = "soap-to-jpa")
 public class SoapToJpaMojo extends AbstractMojo {
-
-    public static final String STR_PLUGIN_NAME = "soapToJpa";
 
     /**
      * Reference to a project, where the current plugin is used
@@ -62,17 +58,10 @@ public class SoapToJpaMojo extends AbstractMojo {
      */
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        this.builder = new JavaProjectBuilder();
 
-        this.jpaOutputDirectory = ensureOutputDirExists();
-        builder.addSourceFolder(this.jpaOutputDirectory);
+        this.setUpPlugin();
 
-        builder.addSourceTree(new File(target.getAbsolutePath() + "/generated-sources/axis2/wsdl2code/src"));
-
-        VelocityEngine ve = new VelocityEngine();
-        ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
-        ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
-        ve.init();
+        VelocityEngine ve = this.setUpVelocity();
 
         Template jpaTemplate = ve.getTemplate("JpaEntityTemplate.vm");
         Template factoryTemplate = ve.getTemplate("FactoryTemplate.vm");
@@ -84,32 +73,64 @@ public class SoapToJpaMojo extends AbstractMojo {
                     .stream()
                     .collect(Collectors.toMap(
                             JavaClass::getCanonicalName,
-                            jc -> getQualifiedName(jc) + "JPA",
+                            jc -> BuildHelper.getQualifiedName(jc) + "JPA",
                             (a, b) -> a));
 
-            // fold all the JPA classes into map, that are referenced to few interfaces
-            Map<String, Set<String>> mapOfConstructors = Maps.newHashMap();
-            mapInterfaces.forEach( (interfaceName, JpaClassName) -> {
-                if (mapOfConstructors.containsKey(JpaClassName)) {
-                    mapOfConstructors.get(JpaClassName).add(interfaceName);
-                }
-                else {
-                    mapOfConstructors.put(JpaClassName, Sets.newHashSet(interfaceName));
-                }
-            });
+            // map "JPA class name" <==> "Set<full interface name>"
+            Map<String, Set<String>> mapOfConstructors = this.buildMapOfConstructors(mapInterfaces);
 
             // write all the JPA classes
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
 
-            // write the Factory
+            // write the Factory class
             this.generateFactoryClass(factoryTemplate, mapInterfaces);
 
         }
         catch (Exception e) {
-            e.printStackTrace();
             throw new MojoFailureException(e.getMessage());
         }
 
+    }
+
+    /**
+     * Perform some initial stuff for the plugin
+     */
+    private void setUpPlugin() {
+        this.builder = new JavaProjectBuilder();
+        this.jpaOutputDirectory = BuildHelper.ensureOutputDirExists(this.target.getAbsolutePath());
+        builder.addSourceFolder(this.jpaOutputDirectory);
+        builder.addSourceTree(new File(target.getAbsolutePath() + "/generated-sources/axis2/wsdl2code/src"));
+    }
+
+    /**
+     * Set up Apache Velocity template engine
+     * @return
+     */
+    private VelocityEngine setUpVelocity() {
+        VelocityEngine ve = new VelocityEngine();
+        ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
+        ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
+        ve.init();
+        return ve;
+    }
+
+    /**
+     * Fold all the JPA classes into a set, that are referenced to a same interfaces
+     *
+     * @param mapInterfaces
+     * @return
+     */
+    private Map<String, Set<String>> buildMapOfConstructors(Map<String, String> mapInterfaces) {
+        Map<String, Set<String>> mapOfConstructors = Maps.newHashMap();
+        mapInterfaces.forEach( (interfaceName, JpaClassName) -> {
+            if (mapOfConstructors.containsKey(JpaClassName)) {
+                mapOfConstructors.get(JpaClassName).add(interfaceName);
+            }
+            else {
+                mapOfConstructors.put(JpaClassName, Sets.newHashSet(interfaceName));
+            }
+        });
+        return mapOfConstructors;
     }
 
     /**
@@ -119,8 +140,8 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @param mapInterfaces
      */
     private void generateFactoryClass(Template factoryTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
-        final String packagePath = ensurePackageExists(factoryPackageName);
-        File factoryFile = this.ensureFactoryFileExists(packagePath);
+        final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), factoryPackageName);
+        File factoryFile = BuildHelper.ensureFactoryFileExists(packagePath);
 
         VelocityContext context = new VelocityContext();
         context.put("package", factoryPackageName);
@@ -129,7 +150,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         StringWriter writer = new StringWriter();
         factoryTemplate.merge( context, writer );
 
-        BuildJPAFileContent.writeContentToFile(writer.toString(), factoryFile);
+        BuildHelper.writeContentToFile(writer.toString(), factoryFile);
     }
 
     /**
@@ -148,14 +169,14 @@ public class SoapToJpaMojo extends AbstractMojo {
             if (jc.isInterface()) {
 
                 final String packageName = jc.isInner() ? jc.getPackageName() + ".inners" : jc.getPackageName();
-                final String packagePath = ensurePackageExists(packageName);
+                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
                 final String className = packageName + "." + jc.getName() + "JPA";
-                File jpaFile = getJpaFile(packagePath, jc);
+                File jpaFile = BuildHelper.getJpaFile(packagePath, jc);
 
                 if (!jpaFile.exists()) {
                     jpaFile.createNewFile();
 
-                    Map<String, FieldType> mapOfFields = BuildJPAFileContent.buildMapOfFields(jc, mapInterfaces);
+                    Map<String, FieldType> mapOfFields = BuildHelper.buildMapOfFields(jc, mapInterfaces);
 
                     VelocityContext context = new VelocityContext();
                     context.put("package", packageName);
@@ -168,94 +189,11 @@ public class SoapToJpaMojo extends AbstractMojo {
                     StringWriter writer = new StringWriter();
                     t.merge( context, writer );
 
-                    BuildJPAFileContent.writeContentToFile(writer.toString(), jpaFile);
+                    BuildHelper.writeContentToFile(writer.toString(), jpaFile);
                 }
             }
         }
     }
 
-    /**
-     * Returns the current package name. In case of inner class, we want to put them to
-     * the subpackage "inners".
-     *
-     * @param jc
-     * @return
-     */
-    private String getQualifiedName(JavaClass jc) {
-        return jc.isInner() ? jc.getPackageName() + ".inners." + jc.getName() : jc.getFullyQualifiedName();
-    }
 
-    /**
-     * Creates output directory for generated JPA stubs
-     *
-     * @return path
-     */
-    private File ensureOutputDirExists() {
-        final String strJPAoutputDir = new StringBuilder(this.target.getAbsolutePath())
-                .append(File.separator)
-                .append("generated-sources")
-                .append(File.separator)
-                .append(STR_PLUGIN_NAME)
-                .append(File.separator)
-                .append("src")
-                .toString();
-
-        final File jpaOutputDir = new File(strJPAoutputDir);
-        if (!jpaOutputDir.exists()) jpaOutputDir.mkdirs();
-        return jpaOutputDir;
-    }
-
-    /**
-     * Make sure that package directory exists. If not - create new one
-     *
-     * @param packageName
-     */
-    private String ensurePackageExists(String packageName) {
-
-        final String absPackagePath = new StringBuilder()
-                .append(this.jpaOutputDirectory.getAbsolutePath())
-                .append(File.separator)
-                .append(packageName.replace(".", File.separator))
-                .toString();
-
-        File newPackage = new File(absPackagePath);
-        if (!newPackage.exists()) newPackage.mkdirs();
-        return absPackagePath;
-    }
-
-    /**
-     * Create new JPA file, if it does not exist yet
-     *
-     * @param jc
-     * @throws IOException
-     */
-    private File getJpaFile(final String strPackagePath, JavaClass jc) throws IOException {
-
-        final String absPathJpaFile = new StringBuilder()
-                .append(strPackagePath)
-                .append(File.separator)
-                .append(jc.getName())
-                .append("JPA.java")
-                .toString();
-
-        return new File(absPathJpaFile);
-    }
-
-    /**
-     * Create new JPA file, if it does not exist yet
-     *
-     * @throws IOException
-     */
-    private File ensureFactoryFileExists(final String strPackagePath) throws IOException {
-
-        final String absPathFactoryFile = new StringBuilder()
-                .append(strPackagePath)
-                .append(File.separator)
-                .append("JPAEntitiesFactory.java")
-                .toString();
-
-        File factoryFile = new File(absPathFactoryFile);
-        if (!factoryFile.exists()) factoryFile.createNewFile();
-        return factoryFile;
-    }
 }
