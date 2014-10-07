@@ -44,6 +44,10 @@ public class SoapToJpaMojo extends AbstractMojo {
     @Parameter( defaultValue = "${settings}", readonly = true )
     private Settings settings;
 
+    // where the generated SOAP stubs can be found
+    @Parameter( defaultValue = "${project.build.directory}/generated-sources/axis2/wsdl2code/src", readonly = true )
+    private File generatedSoapStubsDir;
+
     @Parameter( defaultValue = "${project.build.directory}", readonly = true )
     private File target;
 
@@ -99,12 +103,10 @@ public class SoapToJpaMojo extends AbstractMojo {
         this.builder = new JavaProjectBuilder();
         this.jpaOutputDirectory = BuildHelper.ensureOutputDirExists(this.target.getAbsolutePath());
         builder.addSourceFolder(this.jpaOutputDirectory);
-
-        File dirSoapFiles = new File(target.getAbsolutePath() + "/generated-sources/axis2/wsdl2code/src");
-        builder.addSourceTree(dirSoapFiles);
+        builder.addSourceTree(this.generatedSoapStubsDir);
 
         getLog().info("Directory for generated JPA files: " + this.jpaOutputDirectory.getAbsolutePath());
-        getLog().info("Generated SOAP files will be searched from the directory: " + dirSoapFiles.getAbsolutePath());
+        getLog().info("Generated SOAP files will be searched from the directory: " + this.generatedSoapStubsDir.getAbsolutePath());
         getLog().info("Factory will be placed to the package: " + this.factoryPackageName);
     }
 
@@ -203,7 +205,6 @@ public class SoapToJpaMojo extends AbstractMojo {
                 }
             }
         }
-
         getLog().info(cntCreatedFiles + " files were generated");
     }
 
