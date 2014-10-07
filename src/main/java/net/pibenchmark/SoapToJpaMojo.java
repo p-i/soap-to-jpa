@@ -2,6 +2,7 @@ package net.pibenchmark;
 
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
+import net.pibenchmark.pojo.FieldType;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -78,37 +79,52 @@ public class SoapToJpaMojo extends AbstractMojo {
                             (a, b) -> a));
 
             // write all the JPA classes
-            for (JavaClass jc : builder.getClasses()) {
-                if (jc.isInterface()) {
-
-                    final String packageName = jc.isInner() ? jc.getPackageName() + ".inners" : jc.getPackageName();
-                    final String packagePath = ensurePackageExists(packageName);
-                    File jpaFile = getJpaFile(packagePath, jc);
-
-                    if (!jpaFile.exists()) {
-                        jpaFile.createNewFile();
-
-                        Map<String, String> mapOfFields = BuildJPAFileContent.buildMapOfFields(jc, mapInterfaces);
-
-                        VelocityContext context = new VelocityContext();
-                        context.put("package", packageName);
-                        context.put("className", jc.getName());
-                        context.put("fieldMap", mapOfFields);
-                        context.put("interfaceType", getQualifiedName(jc));
-                        context.put("display", new DisplayTool());
-
-                        StringWriter writer = new StringWriter();
-                        t.merge( context, writer );
-
-                        BuildJPAFileContent.writeContentToFile(writer.toString(), jpaFile);
-                    }
-                }
-            }
+            this.generateJpaClasses(t, mapInterfaces);
         }
         catch (Exception e) {
+            e.printStackTrace();
             throw new MojoFailureException(e.getMessage());
         }
 
+    }
+
+    /**
+     * Generate JPA class for each interface, found in the generate-sources directory. Subclasses will
+     * be stored in a separate subpaclage "inners"
+     *
+     * @param t - Velocity template
+     * @param mapInterfaces - map "interface class" <==> "JPA class"
+     *
+     * @throws IOException
+     * @throws MojoFailureException
+     */
+    private void generateJpaClasses(Template t, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
+        for (JavaClass jc : builder.getClasses()) {
+            if (jc.isInterface()) {
+
+                final String packageName = jc.isInner() ? jc.getPackageName() + ".inners" : jc.getPackageName();
+                final String packagePath = ensurePackageExists(packageName);
+                File jpaFile = getJpaFile(packagePath, jc);
+
+                if (!jpaFile.exists()) {
+                    jpaFile.createNewFile();
+
+                    Map<String, FieldType> mapOfFields = BuildJPAFileContent.buildMapOfFields(jc, mapInterfaces);
+
+                    VelocityContext context = new VelocityContext();
+                    context.put("package", packageName);
+                    context.put("className", jc.getName());
+                    context.put("fieldMap", mapOfFields);
+                    context.put("interfaceType", jc.getFullyQualifiedName().replace('$','.'));
+                    context.put("display", new DisplayTool());
+
+                    StringWriter writer = new StringWriter();
+                    t.merge( context, writer );
+
+                    BuildJPAFileContent.writeContentToFile(writer.toString(), jpaFile);
+                }
+            }
+        }
     }
 
     /**

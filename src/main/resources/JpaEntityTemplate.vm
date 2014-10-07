@@ -18,9 +18,11 @@ public class ${className}JPA {
     @GeneratedValue
     private Long id;
 
-## Generate the list of private fields
+#*
+ The list if private fields
+*#
 #foreach( $field in $fieldMap.keySet() )
-    private $fieldMap.get($field) ${field};
+    private ${fieldMap.get($field).getType()}  ${field};
 #end
 
     /**
@@ -30,7 +32,11 @@ public class ${className}JPA {
      */
     public ${className}JPA(${interfaceType} stub) {
 #foreach( $field in $fieldMap.keySet() )
-    this.${field} = stub.get${display.capitalize($field)}();
+    #if(${fieldMap.get($field).isPrimitive()})
+        this.${field} = stub.get${display.capitalize($field)}();
+    #else
+        this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
+    #end
 #end
 }
 
@@ -48,20 +54,22 @@ public class ${className}JPA {
         this.id = id;
     }
 
-    ## Generate getters and setters
+#*
+ Getters and setters
+*#
     #foreach( $field in $fieldMap.keySet() )
 
     /**
      * Get the entity ${field}
      */
-    public ${fieldMap.get($field)} get${display.capitalize($field)}() {
+    public ${fieldMap.get($field).getType()} get${display.capitalize($field)}() {
         return this.${field};
     }
 
     /**
      * ${field} to be set
      */
-    public void set${display.capitalize($field)}(${fieldMap.get($field)} val) {
+    public void set${display.capitalize($field)}(${fieldMap.get($field).getType()} val) {
         this.${field} = val;
     }
 

@@ -1,8 +1,11 @@
 package net.pibenchmark;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaMethod;
+import net.pibenchmark.pojo.FieldType;
 import org.apache.maven.plugin.MojoFailureException;
 
 import java.io.BufferedWriter;
@@ -24,7 +27,12 @@ public class BuildJPAFileContent {
     private static final int GETTER_PREFIX_LENGTH = "get".length();
     private static final Set<String> PRIMITIVES = ImmutableSet.of(
             String.class.getTypeName(),
-            int.class.getTypeName());
+            int.class.getTypeName(),
+            Integer.class.getTypeName(),
+            double.class.getTypeName(),
+            Double.class.getTypeName(),
+            Boolean.class.getTypeName(),
+            boolean.class.getTypeName());
 
     /**
      * Builds map "field" <==> "type". We take fields only by getters,
@@ -34,16 +42,14 @@ public class BuildJPAFileContent {
      * @param mapInterfaces
      * @return
      */
-    public static Map<String, String> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces) {
-        Map<String, String> mapField = new HashMap<>();
-
+    public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces) {
+        Map<String, FieldType> map = Maps.newHashMap();
         for (JavaMethod method : jc.getMethods()) {
             if(method.getName().startsWith("get")) {
-                mapField.put(extractFieldName(method.getName()), getReturnType(method, mapInterfaces));
+                map.put(extractFieldName(method.getName()), getReturnType(method, mapInterfaces));
             }
         }
-
-        return mapField;
+        return map;
     }
 
     /**
@@ -54,14 +60,14 @@ public class BuildJPAFileContent {
      * @param mapInterfaces
      * @return type as string
      */
-    private static String getReturnType(JavaMethod method, Map<String, String> mapInterfaces) {
+    private static FieldType getReturnType(JavaMethod method, Map<String, String> mapInterfaces) {
         final String strType = method.getReturnType().getCanonicalName();
 
         if (PRIMITIVES.contains(strType)) {
-            return method.getReturns().getName();
+            return new FieldType(true, method.getReturns().getName()) ;
         }
         else {
-            return mapInterfaces.getOrDefault(strType, strType);
+            return new FieldType(false, mapInterfaces.getOrDefault(strType, strType));
         }
     }
 
