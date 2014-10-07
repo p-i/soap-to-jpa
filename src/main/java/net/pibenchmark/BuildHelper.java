@@ -120,7 +120,7 @@ public class BuildHelper {
      * @return path
      */
     public static File ensureOutputDirExists(String targetAbsPath) {
-        final String strJPAoutputDir = new StringBuilder()
+        final String strJPAoutputDir = new StringBuilder(targetAbsPath)
                 .append(File.separator)
                 .append("generated-sources")
                 .append(File.separator)

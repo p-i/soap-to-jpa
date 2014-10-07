@@ -99,7 +99,13 @@ public class SoapToJpaMojo extends AbstractMojo {
         this.builder = new JavaProjectBuilder();
         this.jpaOutputDirectory = BuildHelper.ensureOutputDirExists(this.target.getAbsolutePath());
         builder.addSourceFolder(this.jpaOutputDirectory);
-        builder.addSourceTree(new File(target.getAbsolutePath() + "/generated-sources/axis2/wsdl2code/src"));
+
+        File dirSoapFiles = new File(target.getAbsolutePath() + "/generated-sources/axis2/wsdl2code/src");
+        builder.addSourceTree(dirSoapFiles);
+
+        getLog().info("Directory for generated JPA files: " + this.jpaOutputDirectory.getAbsolutePath());
+        getLog().info("Generated SOAP files will be searched from the directory: " + dirSoapFiles.getAbsolutePath());
+        getLog().info("Factory will be placed to the package: " + this.factoryPackageName);
     }
 
     /**
@@ -165,6 +171,8 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @throws MojoFailureException
      */
     private void generateJpaClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors) throws IOException, MojoFailureException {
+        getLog().info("Generation of the JPA objects...");
+        int cntCreatedFiles = 0;
         for (JavaClass jc : builder.getClasses()) {
             if (jc.isInterface()) {
 
@@ -190,9 +198,13 @@ public class SoapToJpaMojo extends AbstractMojo {
                     t.merge( context, writer );
 
                     BuildHelper.writeContentToFile(writer.toString(), jpaFile);
+
+                    cntCreatedFiles++;
                 }
             }
         }
+
+        getLog().info(cntCreatedFiles + " files were generated");
     }
 
 
