@@ -46,6 +46,9 @@ public class SoapToJpaMojo extends AbstractMojo {
     @Parameter( defaultValue = "${project.build.directory}", readonly = true )
     private File target;
 
+    @Parameter( defaultValue = "org.apache.maven.soap.jpa.factory", readonly = true )
+    private String factoryPackageName;
+
     private JavaProjectBuilder builder;
     private File jpaOutputDirectory;
 
@@ -66,7 +69,8 @@ public class SoapToJpaMojo extends AbstractMojo {
         ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
         ve.init();
 
-        Template t = ve.getTemplate("JpaEntityTemplate.vm");
+        Template jpaTemplate = ve.getTemplate("JpaEntityTemplate.vm");
+        Template factoryTemplate = ve.getTemplate("FactoryTemplate.vm");
 
         try {
 
@@ -79,13 +83,37 @@ public class SoapToJpaMojo extends AbstractMojo {
                             (a, b) -> a));
 
             // write all the JPA classes
-            this.generateJpaClasses(t, mapInterfaces);
+            this.generateJpaClasses(jpaTemplate, mapInterfaces);
+
+            // write the Factory
+            this.generateFactoryClass(factoryTemplate, mapInterfaces);
+
         }
         catch (Exception e) {
             e.printStackTrace();
             throw new MojoFailureException(e.getMessage());
         }
 
+    }
+
+    /**
+     * Generates one file that can produce an instance of JPA regarding a Soap Stub - factory.
+     *
+     * @param factoryTemplate
+     * @param mapInterfaces
+     */
+    private void generateFactoryClass(Template factoryTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
+        final String packagePath = ensurePackageExists(factoryPackageName);
+        File factoryFile = this.ensureFactoryFileExists(packagePath);
+
+        VelocityContext context = new VelocityContext();
+        context.put("package", factoryPackageName);
+        context.put("interfaces", mapInterfaces);
+
+        StringWriter writer = new StringWriter();
+        factoryTemplate.merge( context, writer );
+
+        BuildJPAFileContent.writeContentToFile(writer.toString(), factoryFile);
     }
 
     /**
@@ -192,5 +220,23 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .toString();
 
         return new File(absPathJpaFile);
+    }
+
+    /**
+     * Create new JPA file, if it does not exist yet
+     *
+     * @throws IOException
+     */
+    private File ensureFactoryFileExists(final String strPackagePath) throws IOException {
+
+        final String absPathFactoryFile = new StringBuilder()
+                .append(strPackagePath)
+                .append(File.separator)
+                .append("JPAEntitiesFactory.java")
+                .toString();
+
+        File factoryFile = new File(absPathFactoryFile);
+        if (!factoryFile.exists()) factoryFile.createNewFile();
+        return factoryFile;
     }
 }
