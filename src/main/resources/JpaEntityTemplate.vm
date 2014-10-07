@@ -25,20 +25,26 @@ public class ${className}JPA {
     private ${fieldMap.get($field).getType()}  ${field};
 #end
 
+## Generate few constructors for each SOAP types assigned with this JPA
+#foreach( $constructor in $constructors )
+
     /**
-     * Constructor, that restores an instance of ${className}JPA from SOAP stub.
+     * Constructor, that restores an instance of ${className}JPA
+     * from SOAP stub $constructor
      *
-     * @param stub - instance of type <code>${interfaceType}</code>
+     * @param stub - instance of type <code>${constructor}</code>
      */
-    public ${className}JPA(${interfaceType} stub) {
+    public ${className}JPA(${constructor} stub) {
 #foreach( $field in $fieldMap.keySet() )
     #if(${fieldMap.get($field).isPrimitive()})
-        this.${field} = stub.get${display.capitalize($field)}();
+    this.${field} = stub.get${display.capitalize($field)}();
     #else
-        this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
+    this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
     #end
 #end
 }
+
+#end
 
     /**
      * Get the entity ID

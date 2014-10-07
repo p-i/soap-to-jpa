@@ -1,5 +1,8 @@
 package net.pibenchmark;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import net.pibenchmark.pojo.FieldType;
@@ -21,6 +24,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Mojo( name = "soap-to-jpa")
@@ -82,8 +87,19 @@ public class SoapToJpaMojo extends AbstractMojo {
                             jc -> getQualifiedName(jc) + "JPA",
                             (a, b) -> a));
 
+            // fold all the JPA classes into map, that are referenced to few interfaces
+            Map<String, Set<String>> mapOfConstructors = Maps.newHashMap();
+            mapInterfaces.forEach( (interfaceName, JpaClassName) -> {
+                if (mapOfConstructors.containsKey(JpaClassName)) {
+                    mapOfConstructors.get(JpaClassName).add(interfaceName);
+                }
+                else {
+                    mapOfConstructors.put(JpaClassName, Sets.newHashSet(interfaceName));
+                }
+            });
+
             // write all the JPA classes
-            this.generateJpaClasses(jpaTemplate, mapInterfaces);
+            this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
 
             // write the Factory
             this.generateFactoryClass(factoryTemplate, mapInterfaces);
@@ -123,15 +139,17 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @param t - Velocity template
      * @param mapInterfaces - map "interface class" <==> "JPA class"
      *
+     * @param mapOfConstructors
      * @throws IOException
      * @throws MojoFailureException
      */
-    private void generateJpaClasses(Template t, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
+    private void generateJpaClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors) throws IOException, MojoFailureException {
         for (JavaClass jc : builder.getClasses()) {
             if (jc.isInterface()) {
 
                 final String packageName = jc.isInner() ? jc.getPackageName() + ".inners" : jc.getPackageName();
                 final String packagePath = ensurePackageExists(packageName);
+                final String className = packageName + "." + jc.getName() + "JPA";
                 File jpaFile = getJpaFile(packagePath, jc);
 
                 if (!jpaFile.exists()) {
@@ -143,6 +161,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                     context.put("package", packageName);
                     context.put("className", jc.getName());
                     context.put("fieldMap", mapOfFields);
+                    context.put("constructors", mapOfConstructors.get(className));
                     context.put("interfaceType", jc.getFullyQualifiedName().replace('$','.'));
                     context.put("display", new DisplayTool());
 
