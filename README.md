@@ -29,7 +29,15 @@ After executing, this plugin will perform the following actions:
 
 * scans the *generated-source* directory and collects all the Interfaces (stubs)
 * collects all the fields based on getters for each stub
-* writes JPA entity with all the fields, constructors and getters/setters
+* writes JPA entity with ready:
+
+    * all the fields
+    * constructors 
+    * getters/setters
+    * toString()
+    * equals()
+    * hashCode()
+  
 * creates a Factory (*JPAEntitiesFactory*), that can instantiate appropriate JPA object regarding a stub's type
 
 How to set up the plugin?

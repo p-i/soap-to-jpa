@@ -38,11 +38,12 @@ Generate few constructors for each SOAP types assigned with this JPA
      * @param stub - instance of type <code>${constructor}</code>
      */
     public ${className}JPA(${constructor} stub) {
+
 #foreach( $field in $fieldMap.keySet() )
     #if(${fieldMap.get($field).isPrimitive()})
-    this.${field} = stub.get${display.capitalize($field)}();
+        this.${field} = stub.get${display.capitalize($field)}();
     #else
-if (null != stub.get${display.capitalize($field)}()) {
+        if (null != stub.get${display.capitalize($field)}()) {
             this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
         }
     #end
@@ -102,11 +103,33 @@ if (null != stub.get${display.capitalize($field)}()) {
     @Override
     public String toString() {
         return com.google.common.base.Objects.toStringHelper(this)
+            .add("id", this.id)
 #foreach( $field in $fieldMap.keySet() )
             .add("${field}", this.${field})
 #end
             .omitNullValues()
             .toString();
+    }
+
+
+#*
+ hashCode()
+*#
+
+    /**
+     * {@inheritDoc}
+     *
+     * This code requires Guava library.
+     */
+    @Override
+    public int hashCode() {
+        return com.google.common.base.Objects.hashCode(
+            this.id,
+#foreach( $field in $fieldMap.keySet() )
+            this.${field}#if( $foreach.hasNext ), #end
+
+#end
+        );
     }
 
 }
