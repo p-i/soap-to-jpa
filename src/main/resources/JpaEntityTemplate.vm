@@ -41,11 +41,9 @@ Generate few constructors for each SOAP types assigned with this JPA
 
 #foreach( $field in $fieldMap.keySet() )
     #if(${fieldMap.get($field).isPrimitive()})
-        this.${field} = stub.get${display.capitalize($field)}();
+    this.${field} = stub.get${display.capitalize($field)}();
     #else
-        if (null != stub.get${display.capitalize($field)}()) {
-            this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
-        }
+    if (null != stub.get${display.capitalize($field)}()) this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
     #end
 #end
 }
@@ -130,6 +128,30 @@ Generate few constructors for each SOAP types assigned with this JPA
 
 #end
         );
+    }
+
+#*
+ equals()
+*#
+
+    /**
+     * {@inheritDoc}
+     *
+     * This code requires Guava library.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        final ${className}JPA that = (${className}JPA) o;
+
+        return com.google.common.base.Objects.equal(this.id, that.id)
+#foreach( $field in $fieldMap.keySet() )
+            && com.google.common.base.Objects.equal(this.${field}, that.${field})#if( !$foreach.hasNext ); #end
+
+#end
+
     }
 
 }
