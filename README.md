@@ -45,13 +45,28 @@ As long this plugin is not (yet) presented in the Central Maven Repository, you 
 
 2. Add to your POM file the following lines:
 
- ``` 
+```
+            <dependency>
+                <groupId>javax.persistence</groupId>
+                <artifactId>persistence-api</artifactId>
+                <version>1.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>17.0</version>
+            </dependency>
+```
+
+and
+
+``` 
             <plugin>
                 <groupId>net.pibenchmark</groupId>
                 <artifactId>soap-to-jpa-maven-plugin</artifactId>
                 <version>1.0-SNAPSHOT</version>
             </plugin>
- ```
+```
 
 3. Run the command *on your project* where the soap-to-jpa plugin was included (after you have generated SOAP stubs):
  
