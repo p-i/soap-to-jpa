@@ -2,34 +2,79 @@ package net.pibenchmark.pojo;
 
 import com.google.common.base.Objects;
 
+import java.util.List;
+
 /**
  * Created by ilja on 06/10/14.
  */
 public class FieldType {
 
-    private String type;
-    private boolean isPrimitive;
+    public static final byte PRIMITIVE = 0;
+    public static final byte ARRAY_OF_PRIMITIVES = 1;
+    public static final byte ARRAY_OF_COMPLEX_TYPES = 2;
+    public static final byte COLLECTION = 3;
+    public static final byte COMPLEX_TYPE = 4;
 
-    public FieldType(boolean b, String typeName) {
-        this.type = typeName;
-        this.isPrimitive = b;
+    private final String typeName;
+    private final String originalTypeName;
+    private final byte typeKind;
+
+    public FieldType(byte b, String typeName, String originalTypeName) {
+        this.typeKind = b;
+        this.typeName = typeName;
+        this.originalTypeName = originalTypeName;
     }
 
-    public String getType() {
-        return type;
+    public String getTypeName() {
+        return typeName;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public byte getTypeKind() {
+        return typeKind;
+    }
+
+    public String getOriginalTypeName() {
+        return originalTypeName;
+    }
+
+    /**
+     * Return type ready to be rendered.
+     *
+     * @return
+     */
+    public String render() {
+        switch (this.typeKind) {
+
+            case ARRAY_OF_COMPLEX_TYPES:
+                return List.class.getTypeName() + "<" + this.typeName + ">";
+
+            case ARRAY_OF_PRIMITIVES:
+                return this.typeName + "[]";
+
+            case COLLECTION:
+                return List.class.getTypeName();
+
+            default:
+                return this.typeName;
+        }
     }
 
     public boolean isPrimitive() {
-        return isPrimitive;
+        return this.typeKind == PRIMITIVE;
+    }
+    public boolean isArrayOfPrimitives() {
+        return this.typeKind == ARRAY_OF_PRIMITIVES;
+    }
+    public boolean isArrayOfComplextType() {
+        return this.typeKind == ARRAY_OF_COMPLEX_TYPES;
+    }
+    public boolean isCollection() {
+        return this.typeKind == COLLECTION;
+    }
+    public boolean isComplexType() {
+        return this.typeKind == COMPLEX_TYPE;
     }
 
-    public void setPrimitive(boolean isPrimitive) {
-        this.isPrimitive = isPrimitive;
-    }
 
     @Override
     public boolean equals(Object o) {
@@ -38,24 +83,25 @@ public class FieldType {
 
         FieldType fieldType = (FieldType) o;
 
-        if (isPrimitive != fieldType.isPrimitive) return false;
-        if (!type.equals(fieldType.type)) return false;
+        if (typeKind != fieldType.typeKind) return false;
+        if (!typeName.equals(fieldType.typeName)) return false;
 
         return true;
     }
 
     @Override
     public int hashCode() {
-        int result = type.hashCode();
-        result = 31 * result + (isPrimitive ? 1 : 0);
+        int result = typeName.hashCode();
+        result = 31 * result + (int) typeKind;
         return result;
     }
 
     @Override
     public String toString() {
         return Objects.toStringHelper(this)
-                .add("type", type)
-                .add("isPrimitive", isPrimitive)
+                .add("typeName", typeName)
+                .add("originalTypeName", originalTypeName)
+                .add("typeKind", typeKind)
                 .toString();
     }
 }

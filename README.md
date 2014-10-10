@@ -38,7 +38,7 @@ After executing, this plugin will perform the following actions:
     * equals()
     * hashCode()
   
-* creates a Factory (*JPAEntitiesFactory*), that can instantiate appropriate JPA object regarding a stub's type
+* creates a Factory (*JPAEntitiesFactory*), that can instantiate appropriate JPA object regarding a stub's typeName
 
 How to set up the plugin?
 -----
@@ -130,7 +130,7 @@ Default value: *"${project.build.directory}/generated-sources/axis2/wsdl2code/sr
 
 **factoryPackageName**
 
-Besides JPA files, the plugin generates also the factory, allowing to instantiate an appropriate JPA object regarding the stub type. The class name is **JPAEntitiesFactory**.
+Besides JPA files, the plugin generates also the factory, allowing to instantiate an appropriate JPA object regarding the stub typeName. The class name is **JPAEntitiesFactory**.
 This parameter will set the package name where this factory should be generated.
 
 Default value: *"org.apache.maven.soap.jpa.factory"*

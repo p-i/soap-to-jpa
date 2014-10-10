@@ -4,6 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 
 /**
  * GENERATED JPA CONTENT. DO NOT MODIFY!
@@ -22,7 +23,11 @@ public class ${className}JPA {
  The list if private fields
 *#
 #foreach( $field in $fieldMap.keySet() )
-    private ${fieldMap.get($field).getType()}  ${field};
+    #if(${fieldMap.get(${field}).isArrayOfComplextType()})
+
+        @OneToMany
+    #end
+    private ${fieldMap.get($field).render()}  _${field};
 #end
 
 
@@ -35,16 +40,43 @@ Generate few constructors for each SOAP types assigned with this JPA
      * Constructor, that restores an instance of ${className}JPA
      * from SOAP stub $constructor
      *
-     * @param stub - instance of type <code>${constructor}</code>
+     * @param stub - instance of typeName <code>${constructor}</code>
      */
     public ${className}JPA(${constructor} stub) {
 
 #foreach( $field in $fieldMap.keySet() )
-    #if(${fieldMap.get($field).isPrimitive()})
-    this.${field} = stub.get${display.capitalize($field)}();
-    #else
-    if (null != stub.get${display.capitalize($field)}()) this.${field} = new ${fieldMap.get($field).getType()}(stub.get${display.capitalize($field)}());
+    #set( $currentField = ${fieldMap.get($field)} )
+    #set( $capitalizedFieldName = ${display.capitalize($field)} )
+
+    #if( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
+        this._${field} = stub.get${capitalizedFieldName}();
+    #elseif( ${currentField.isArrayOfComplextType()} )
+        #*
+            Transfer an array to a collection and mark it as "One-to-many"
+        *#
+        if (null != stub.get${capitalizedFieldName}()) {
+            final int _${field}Size = stub.get${capitalizedFieldName}().length;
+            this._${field} = com.google.common.collect.Lists.newArrayList();
+            for (int i = 0; i < _${field}Size; i++) {
+                this._${field}.add( new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}()[i]) );
+            }
+        }
+    #elseif( ${currentField.isCollection()} )
+        #*
+            Populate the collection in a loop, creating of a new instance on every iteration
+        *#
+        if(stub.get${capitalizedFieldName}()) {
+            this._${field} = com.google.common.collect.Lists.newArrayList();
+            for (Object obj : stub.get${capitalizedFieldName}()) {
+                this._${field}.add( obj);
+            }
+        }
+    #elseif( ${currentField.isComplexType()} )
+        if (null != stub.get${capitalizedFieldName}()) {
+            this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}());
+        }
     #end
+
 #end
 }
 
@@ -53,14 +85,14 @@ Generate few constructors for each SOAP types assigned with this JPA
     /**
      * Get the entity ID
      */
-    public Long getId() {
+    public Long getID() {
         return this.id;
     }
 
     /**
      * Id to be set
      */
-    public void setId(Long id) {
+    public void setID(Long id) {
         this.id = id;
     }
 
@@ -74,15 +106,15 @@ Generate few constructors for each SOAP types assigned with this JPA
     /**
      * Get the entity ${field}
      */
-    public ${fieldMap.get($field).getType()} get${display.capitalize($field)}() {
-        return this.${field};
+    public ${fieldMap.get($field).render()} get${display.capitalize($field)}() {
+        return this._${field};
     }
 
     /**
      * ${field} to be set
      */
-    public void set${display.capitalize($field)}(${fieldMap.get($field).getType()} val) {
-        this.${field} = val;
+    public void set${display.capitalize($field)}(${fieldMap.get($field).render()} val) {
+        this._${field} = val;
     }
 
     #end
@@ -99,11 +131,11 @@ Generate few constructors for each SOAP types assigned with this JPA
      * This code requires Guava library.
      */
     @Override
-    public String toString() {
+    public java.lang.String toString() {
         return com.google.common.base.Objects.toStringHelper(this)
             .add("id", this.id)
 #foreach( $field in $fieldMap.keySet() )
-            .add("${field}", this.${field})
+            .add("${field}", this._${field})
 #end
             .omitNullValues()
             .toString();
@@ -122,12 +154,10 @@ Generate few constructors for each SOAP types assigned with this JPA
     @Override
     public int hashCode() {
         return com.google.common.base.Objects.hashCode(
-            this.id,
 #foreach( $field in $fieldMap.keySet() )
-            this.${field}#if( $foreach.hasNext ), #end
-
+            this._${field},
 #end
-        );
+        this.id);
     }
 
 #*
@@ -148,10 +178,8 @@ Generate few constructors for each SOAP types assigned with this JPA
 
         return com.google.common.base.Objects.equal(this.id, that.id)
 #foreach( $field in $fieldMap.keySet() )
-            && com.google.common.base.Objects.equal(this.${field}, that.${field})#if( !$foreach.hasNext ); #end
-
-#end
-
+            && com.google.common.base.Objects.equal(this._${field}, that._${field})
+#end ;
     }
 
 }

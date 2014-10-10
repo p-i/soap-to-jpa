@@ -11,6 +11,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,7 +31,13 @@ public class BuildHelper {
             double.class.getTypeName(),
             Double.class.getTypeName(),
             Boolean.class.getTypeName(),
-            boolean.class.getTypeName());
+            boolean.class.getTypeName(),
+            Byte.class.getTypeName(),
+            byte.class.getTypeName(),
+            Float.class.getTypeName(),
+            float.class.getTypeName(),
+            Short.class.getTypeName(),
+            short.class.getTypeName());
 
     /**
      * Builds map "field" <==> "type". We take fields only by getters,
@@ -42,8 +49,10 @@ public class BuildHelper {
      */
     public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces) {
         Map<String, FieldType> map = Maps.newHashMap();
+        boolean isGetter;
         for (JavaMethod method : jc.getMethods()) {
-            if(method.getName().startsWith("get")) {
+            isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());
+            if(isGetter) {
                 map.put(extractFieldName(method.getName()), getReturnType(method, mapInterfaces));
             }
         }
@@ -58,14 +67,30 @@ public class BuildHelper {
      * @param mapInterfaces
      * @return type as string
      */
-    private static FieldType getReturnType(JavaMethod method, Map<String, String> mapInterfaces) {
-        final String strType = method.getReturnType().getCanonicalName();
+    static FieldType getReturnType(JavaMethod method, Map<String, String> mapInterfaces) {
+        final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
 
         if (PRIMITIVES.contains(strType)) {
-            return new FieldType(true, method.getReturns().getName()) ;
+            return new FieldType(FieldType.PRIMITIVE, strType, strType) ;
+        }
+        else if (strType.equals(List.class.getTypeName()) || strType.equals(Set.class.getTypeName())) {
+            return new FieldType(FieldType.COLLECTION, method.getReturns().getName(), strType) ;
+        }
+        else if (strType.endsWith("[]")) {
+            final String strTypeOfArray = strType.substring(0, strType.length()-2);
+            if (PRIMITIVES.contains(strTypeOfArray)) {
+                // array of primitives
+                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray) ;
+            }
+            else {
+                // array of complex types
+                return new FieldType(FieldType.ARRAY_OF_COMPLEX_TYPES,
+                        mapInterfaces.getOrDefault(strTypeOfArray, strTypeOfArray + "[]"),
+                        strTypeOfArray) ;
+            }
         }
         else {
-            return new FieldType(false, mapInterfaces.getOrDefault(strType, strType));
+            return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.getOrDefault(strType, strType), strType);
         }
     }
 

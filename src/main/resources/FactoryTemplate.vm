@@ -15,7 +15,7 @@ public class JPAEntitiesFactory {
      * Return singletone instance of factory
      */
     public static JPAEntitiesFactory getInstance() {
-        if (_instance == null) {
+        if (null == _instance) {
             _instance = new JPAEntitiesFactory();
         }
         return _instance;
@@ -24,7 +24,7 @@ public class JPAEntitiesFactory {
     /**
      * Creates JPA instance for a given SOAP stub
      */
-    public static Object create(Object soapStub) {
+    public Object create(Object soapStub) {
         if (null == soapStub) {
             throw new IllegalArgumentException("Soap Stub is cannot be null. Factory doesn't know which JPA entity to return.");
         }

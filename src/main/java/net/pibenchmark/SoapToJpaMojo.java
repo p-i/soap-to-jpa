@@ -175,6 +175,8 @@ public class SoapToJpaMojo extends AbstractMojo {
     private void generateJpaClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors) throws IOException, MojoFailureException {
         getLog().info("Generation of the JPA objects...");
         int cntCreatedFiles = 0;
+        int cntSkippedFiles = 0;
+
         for (JavaClass jc : builder.getClasses()) {
             if (jc.isInterface()) {
 
@@ -203,9 +205,12 @@ public class SoapToJpaMojo extends AbstractMojo {
 
                     cntCreatedFiles++;
                 }
+                else {
+                    cntSkippedFiles++;
+                }
             }
         }
-        getLog().info(cntCreatedFiles + " files were generated");
+        getLog().info(cntCreatedFiles + " files were generated and " + cntSkippedFiles + " were skipped");
     }
 
 
