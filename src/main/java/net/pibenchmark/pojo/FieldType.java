@@ -75,6 +75,14 @@ public class FieldType {
         return this.typeKind == COMPLEX_TYPE;
     }
 
+    /**
+     * Checks whether the types was defined or not.
+     *
+     * @return
+     */
+    public boolean isDefined() {
+        return this.typeName != null;
+    }
 
     @Override
     public boolean equals(Object o) {

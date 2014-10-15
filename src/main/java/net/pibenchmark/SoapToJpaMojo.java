@@ -22,6 +22,8 @@ import org.apache.velocity.tools.generic.DisplayTool;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -57,6 +59,9 @@ public class SoapToJpaMojo extends AbstractMojo {
     private JavaProjectBuilder builder;
     private File jpaOutputDirectory;
 
+    // for the compilation performance, one factory can not contain more than this value of iterations
+    public static final int MAX_ITERATIONS_PER_FACTORY = 50;
+
     /**
      * {@inheritDoc}
      */
@@ -69,15 +74,18 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         Template jpaTemplate = ve.getTemplate("JpaEntityTemplate.vm");
         Template factoryTemplate = ve.getTemplate("FactoryTemplate.vm");
+        Template factoryChunkTemplate = ve.getTemplate("FactoryChunkTemplate.vm");
 
         try {
 
             // collect all interfaces to map "full interface name" <==> "fully qualified JPA name"
             Map<String, String> mapInterfaces = builder.getClasses()
                     .stream()
+                    .filter( (className) -> !className.toString().endsWith("Factory") && !className.toString().endsWith("Impl") )
+                    .filter( (className) -> className.isInterface() )
                     .collect(Collectors.toMap(
                             JavaClass::getCanonicalName,
-                            jc -> BuildHelper.getQualifiedName(jc) + "JPA",
+                            jc -> Arrays.stream(BuildHelper.getQualifiedName(jc)).collect(Collectors.joining(".")),
                             (a, b) -> a));
 
             // map "JPA class name" <==> "Set<full interface name>"
@@ -87,7 +95,7 @@ public class SoapToJpaMojo extends AbstractMojo {
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
 
             // write the Factory class
-            this.generateFactoryClass(factoryTemplate, mapInterfaces);
+            this.generateFactoryClass(factoryTemplate, factoryChunkTemplate, mapInterfaces);
 
         }
         catch (Exception e) {
@@ -123,7 +131,8 @@ public class SoapToJpaMojo extends AbstractMojo {
     }
 
     /**
-     * Fold all the JPA classes into a set, that are referenced to a same interfaces
+     * Fold all the JPA classes into a set, that are referenced to a same interfaces.
+     * Builds map "Jpa class" <==> "Soap interfaces"
      *
      * @param mapInterfaces
      * @return
@@ -147,18 +156,61 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @param factoryTemplate
      * @param mapInterfaces
      */
-    private void generateFactoryClass(Template factoryTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
+    private void generateFactoryClass(Template factoryTemplate, Template factoryChunkTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
+        if (MAX_ITERATIONS_PER_FACTORY < mapInterfaces.size()) {
+
+            getLog().info("Generation of the JPA factory chunks...");
+            int chunk = 1;
+            do {
+
+                Map<String, String> subMapInterfaces = Maps.newConcurrentMap();
+
+                Iterator<Map.Entry<String, String>> iterator = mapInterfaces.entrySet().iterator();
+                for (int i = 0; i < MAX_ITERATIONS_PER_FACTORY; i++) {
+                    Map.Entry<String, String> next = iterator.next();
+                    subMapInterfaces.put(next.getKey(), next.getValue());
+                    iterator.remove();
+                }
+                _writeFactoryChunkFile(factoryChunkTemplate, subMapInterfaces, chunk++);
+
+            } while (MAX_ITERATIONS_PER_FACTORY < mapInterfaces.size());
+
+            getLog().info("Factory was too big, so it was splitted to " + --chunk + " chunks");
+            _writeFactoryFile(factoryTemplate, mapInterfaces, chunk);
+        }
+        else {
+            _writeFactoryFile(factoryTemplate, mapInterfaces, 0);
+        }
+    }
+
+    private void _writeFactoryFile(Template factoryTemplate, Map<String, String> mapInterfaces, int chunkNumber) throws IOException, MojoFailureException {
         final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), factoryPackageName);
-        File factoryFile = BuildHelper.ensureFactoryFileExists(packagePath);
+        File factoryFile = BuildHelper.ensureFactoryFileExists(packagePath, 0);
 
         VelocityContext context = new VelocityContext();
         context.put("package", factoryPackageName);
         context.put("interfaces", mapInterfaces);
+        context.put("chunkNumber", chunkNumber);
 
         StringWriter writer = new StringWriter();
         factoryTemplate.merge( context, writer );
 
         BuildHelper.writeContentToFile(writer.toString(), factoryFile);
+    }
+
+    private void _writeFactoryChunkFile(Template factoryChunkTemplate, Map<String, String> mapInterfaces, int chunk) throws IOException, MojoFailureException {
+        final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), factoryPackageName);
+        File factoryChunkFile = BuildHelper.ensureFactoryFileExists(packagePath, chunk);
+
+        VelocityContext context = new VelocityContext();
+        context.put("package", factoryPackageName);
+        context.put("interfaces", mapInterfaces);
+        context.put("chunk", chunk);
+
+        StringWriter writer = new StringWriter();
+        factoryChunkTemplate.merge( context, writer );
+
+        BuildHelper.writeContentToFile(writer.toString(), factoryChunkFile);
     }
 
     /**
@@ -180,10 +232,10 @@ public class SoapToJpaMojo extends AbstractMojo {
         for (JavaClass jc : builder.getClasses()) {
             if (jc.isInterface()) {
 
-                final String packageName = jc.isInner() ? jc.getPackageName() + ".inners" : jc.getPackageName();
-                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
-                final String className = packageName + "." + jc.getName() + "JPA";
-                File jpaFile = BuildHelper.getJpaFile(packagePath, jc);
+                String[] arrName = BuildHelper.getQualifiedName(jc);
+                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), arrName[0]);
+
+                File jpaFile = BuildHelper.getJpaFile(packagePath, arrName[1]);
 
                 if (!jpaFile.exists()) {
                     jpaFile.createNewFile();
@@ -191,10 +243,10 @@ public class SoapToJpaMojo extends AbstractMojo {
                     Map<String, FieldType> mapOfFields = BuildHelper.buildMapOfFields(jc, mapInterfaces);
 
                     VelocityContext context = new VelocityContext();
-                    context.put("package", packageName);
-                    context.put("className", jc.getName());
+                    context.put("package", arrName[0]);
+                    context.put("className", arrName[1]);
                     context.put("fieldMap", mapOfFields);
-                    context.put("constructors", mapOfConstructors.get(className));
+                    context.put("constructors", mapOfConstructors.get(arrName[0] + "." + arrName[1]));
                     context.put("interfaceType", jc.getFullyQualifiedName().replace('$','.'));
                     context.put("display", new DisplayTool());
 

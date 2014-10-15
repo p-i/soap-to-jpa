@@ -24,6 +24,7 @@ import java.util.Set;
 public class BuildHelper {
 
     private static final int GETTER_PREFIX_LENGTH = "get".length();
+
     private static final Set<String> PRIMITIVES = ImmutableSet.of(
             String.class.getTypeName(),
             int.class.getTypeName(),
@@ -37,7 +38,12 @@ public class BuildHelper {
             Float.class.getTypeName(),
             float.class.getTypeName(),
             Short.class.getTypeName(),
-            short.class.getTypeName());
+            short.class.getTypeName(),
+            java.math.BigInteger.class.getTypeName());
+
+    public static final Set<String> RESERVED_TYPES = ImmutableSet.of(
+            "org.apache.xmlbeans.XmlObject"
+    );
 
     /**
      * Builds map "field" <==> "type". We take fields only by getters,
@@ -53,7 +59,10 @@ public class BuildHelper {
         for (JavaMethod method : jc.getMethods()) {
             isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());
             if(isGetter) {
-                map.put(extractFieldName(method.getName()), getReturnType(method, mapInterfaces));
+                final FieldType returnType = getReturnType(method, mapInterfaces);
+                if (!RESERVED_TYPES.contains(returnType.getTypeName()) && returnType.isDefined()) {
+                    map.put(extractFieldName(method.getName()), returnType);
+                }
             }
         }
         return map;
@@ -85,12 +94,12 @@ public class BuildHelper {
             else {
                 // array of complex types
                 return new FieldType(FieldType.ARRAY_OF_COMPLEX_TYPES,
-                        mapInterfaces.getOrDefault(strTypeOfArray, strTypeOfArray + "[]"),
+                        mapInterfaces.get(strTypeOfArray),
                         strTypeOfArray) ;
             }
         }
         else {
-            return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.getOrDefault(strType, strType), strType);
+            return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType);
         }
     }
 
@@ -133,10 +142,19 @@ public class BuildHelper {
      * the subpackage "inners".
      *
      * @param jc
-     * @return
+     * @return array: [0] - package, [1] - class name
      */
-    public static String getQualifiedName(JavaClass jc) {
-        return jc.isInner() ? jc.getPackageName() + ".inners." + jc.getName() : jc.getFullyQualifiedName();
+    public static String[] getQualifiedName(JavaClass jc) {
+        final String packageName = jc.isInner() ?
+                (jc.getPackageName() + ".inners")
+                : jc.getPackageName();
+
+        final String className =
+                (jc.isInner() ? jc.getDeclaringClass().getGenericValue().replace('.', '_') + "_" + jc.getName() : jc.getName() )
+                + "JPA";
+
+        final String[] arr = {packageName, className};
+        return arr;
     }
 
     /**
@@ -145,7 +163,7 @@ public class BuildHelper {
      * @return path
      */
     public static File ensureOutputDirExists(String targetAbsPath) {
-        final String strJPAoutputDir = new StringBuilder(targetAbsPath)
+        final String strJPAOutputDir = new StringBuilder(targetAbsPath)
                 .append(File.separator)
                 .append("generated-sources")
                 .append(File.separator)
@@ -154,7 +172,7 @@ public class BuildHelper {
                 .append("src")
                 .toString();
 
-        final File jpaOutputDir = new File(strJPAoutputDir);
+        final File jpaOutputDir = new File(strJPAOutputDir);
         if (!jpaOutputDir.exists()) jpaOutputDir.mkdirs();
         return jpaOutputDir;
     }
@@ -180,16 +198,18 @@ public class BuildHelper {
     /**
      * Create new JPA file, if it does not exist yet
      *
-     * @param jc
+     * @param strPackagePath
+     * @param fileName
+     *
      * @throws IOException
      */
-    public static File getJpaFile(final String strPackagePath, JavaClass jc) throws IOException {
+    public static File getJpaFile(final String strPackagePath, final String fileName) throws IOException {
 
         final String absPathJpaFile = new StringBuilder()
                 .append(strPackagePath)
                 .append(File.separator)
-                .append(jc.getName())
-                .append("JPA.java")
+                .append(fileName)
+                .append(".java")
                 .toString();
 
         return new File(absPathJpaFile);
@@ -200,12 +220,12 @@ public class BuildHelper {
      *
      * @throws IOException
      */
-    public static File ensureFactoryFileExists(final String strPackagePath) throws IOException {
+    public static File ensureFactoryFileExists(final String strPackagePath, final int chunkNumber) throws IOException {
 
         final String absPathFactoryFile = new StringBuilder()
                 .append(strPackagePath)
                 .append(File.separator)
-                .append("JPAEntitiesFactory.java")
+                .append(chunkNumber == 0 ? "JPAEntitiesFactory.java" : "JPAEntitiesFactoryChunk" + chunkNumber + ".java")
                 .toString();
 
         File factoryFile = new File(absPathFactoryFile);
