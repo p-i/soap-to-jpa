@@ -149,12 +149,11 @@ public class BuildHelper {
                 (jc.getPackageName() + ".inners")
                 : jc.getPackageName();
 
-        final String className =
-                (jc.isInner() ? jc.getDeclaringClass().getGenericValue().replace('.', '_') + "_" + jc.getName() : jc.getName() )
-                + "JPA";
+        final String className = (jc.isInner() ?
+                        jc.getDeclaringClass().getGenericValue().replace('.', '_') + "_" + jc.getName() :
+                        jc.getName() ) + "JPA";
 
-        final String[] arr = {packageName, className};
-        return arr;
+        return new String[] {packageName, className};
     }
 
     /**
