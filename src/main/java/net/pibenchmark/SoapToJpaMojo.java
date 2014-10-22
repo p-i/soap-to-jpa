@@ -1,10 +1,13 @@
 package net.pibenchmark;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import net.pibenchmark.pojo.FieldType;
+import net.pibenchmark.pojo.InnerClass;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -22,10 +25,7 @@ import org.apache.velocity.tools.generic.DisplayTool;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Mojo( name = "soap-to-jpa")
@@ -63,6 +63,21 @@ public class SoapToJpaMojo extends AbstractMojo {
     public static final int MAX_ITERATIONS_PER_FACTORY = 50;
 
     /**
+     * Perform some initial stuff for the plugin
+     */
+    private void setUpPlugin() {
+        this.builder = new JavaProjectBuilder();
+        this.jpaOutputDirectory = BuildHelper.ensureOutputDirExists(this.target.getAbsolutePath());
+        builder.addSourceFolder(this.jpaOutputDirectory);
+        builder.addSourceTree(this.generatedSoapStubsDir);
+
+        getLog().info("Directory for generated JPA files: " + this.jpaOutputDirectory.getAbsolutePath());
+        getLog().info("Generated SOAP files will be searched from the directory: " + this.generatedSoapStubsDir.getAbsolutePath());
+        getLog().info("Factory will be placed to the package: " + this.factoryPackageName);
+    }
+
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -79,17 +94,16 @@ public class SoapToJpaMojo extends AbstractMojo {
         try {
 
             // collect all interfaces to map "full interface name" <==> "fully qualified JPA name"
-            Map<String, String> mapInterfaces = builder.getClasses()
+            final Map<String, String> mapInterfaces = builder.getClasses()
                     .stream()
                     .filter( (className) -> !className.toString().endsWith("Factory") && !className.toString().endsWith("Impl") )
                     .filter( (className) -> className.isInterface() )
                     .collect(Collectors.toMap(
                             JavaClass::getCanonicalName,
-                            jc -> Arrays.stream(BuildHelper.getQualifiedName(jc)).collect(Collectors.joining(".")),
-                            (a, b) -> a));
+                            jc -> BuildHelper.getQualifiedName(jc).replace("$","JPA.") + "JPA"));
 
             // map "JPA class name" <==> "Set<full interface name>"
-            Map<String, Set<String>> mapOfConstructors = this.buildMapOfConstructors(mapInterfaces);
+            final Map<String, Set<String>> mapOfConstructors = this.buildMapOfConstructors(mapInterfaces);
 
             // write all the JPA classes
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
@@ -102,20 +116,6 @@ public class SoapToJpaMojo extends AbstractMojo {
             throw new MojoFailureException(e.getMessage());
         }
 
-    }
-
-    /**
-     * Perform some initial stuff for the plugin
-     */
-    private void setUpPlugin() {
-        this.builder = new JavaProjectBuilder();
-        this.jpaOutputDirectory = BuildHelper.ensureOutputDirExists(this.target.getAbsolutePath());
-        builder.addSourceFolder(this.jpaOutputDirectory);
-        builder.addSourceTree(this.generatedSoapStubsDir);
-
-        getLog().info("Directory for generated JPA files: " + this.jpaOutputDirectory.getAbsolutePath());
-        getLog().info("Generated SOAP files will be searched from the directory: " + this.generatedSoapStubsDir.getAbsolutePath());
-        getLog().info("Factory will be placed to the package: " + this.factoryPackageName);
     }
 
     /**
@@ -139,11 +139,10 @@ public class SoapToJpaMojo extends AbstractMojo {
      */
     private Map<String, Set<String>> buildMapOfConstructors(Map<String, String> mapInterfaces) {
         Map<String, Set<String>> mapOfConstructors = Maps.newHashMap();
-        mapInterfaces.forEach( (interfaceName, JpaClassName) -> {
+        mapInterfaces.forEach((interfaceName, JpaClassName) -> {
             if (mapOfConstructors.containsKey(JpaClassName)) {
                 mapOfConstructors.get(JpaClassName).add(interfaceName);
-            }
-            else {
+            } else {
                 mapOfConstructors.put(JpaClassName, Sets.newHashSet(interfaceName));
             }
         });
@@ -215,7 +214,7 @@ public class SoapToJpaMojo extends AbstractMojo {
 
     /**
      * Generate JPA class for each interface, found in the generate-sources directory. Subclasses will
-     * be stored in a separate subpaclage "inners"
+     * be stored in a separate subpackage "inners"
      *
      * @param t - Velocity template
      * @param mapInterfaces - map "interface class" <==> "JPA class"
@@ -230,30 +229,19 @@ public class SoapToJpaMojo extends AbstractMojo {
         int cntSkippedFiles = 0;
 
         for (JavaClass jc : builder.getClasses()) {
-            if (jc.isInterface()) {
+            if (jc.isInterface() && !jc.isInner()) {
 
-                String[] arrName = BuildHelper.getQualifiedName(jc);
-                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), arrName[0]);
+                final String packageName = jc.getPackageName();
+                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
 
-                File jpaFile = BuildHelper.getJpaFile(packagePath, arrName[1]);
+                File jpaFile = BuildHelper.getJpaFile(packagePath, jc.getName());
 
                 if (!jpaFile.exists()) {
                     jpaFile.createNewFile();
 
-                    Map<String, FieldType> mapOfFields = BuildHelper.buildMapOfFields(jc, mapInterfaces);
+                    final String classBodyCode = this.getCodeOfClassBody(false, t, mapInterfaces, mapOfConstructors, jc, jc);
 
-                    VelocityContext context = new VelocityContext();
-                    context.put("package", arrName[0]);
-                    context.put("className", arrName[1]);
-                    context.put("fieldMap", mapOfFields);
-                    context.put("constructors", mapOfConstructors.get(arrName[0] + "." + arrName[1]));
-                    context.put("interfaceType", jc.getFullyQualifiedName().replace('$','.'));
-                    context.put("display", new DisplayTool());
-
-                    StringWriter writer = new StringWriter();
-                    t.merge( context, writer );
-
-                    BuildHelper.writeContentToFile(writer.toString(), jpaFile);
+                    BuildHelper.writeContentToFile(classBodyCode, jpaFile);
 
                     cntCreatedFiles++;
                 }
@@ -265,5 +253,64 @@ public class SoapToJpaMojo extends AbstractMojo {
         getLog().info(cntCreatedFiles + " files were generated and " + cntSkippedFiles + " were skipped");
     }
 
+    /**
+     * Renders the body code of a given class and returns it as String.
+     * It can be parent class or embedded (inner) class.
+     *
+     * @param t
+     * @param mapInterfaces
+     * @param mapOfConstructors
+     * @param jc
+     * @return
+     */
+    private String getCodeOfClassBody(boolean isEmbedded, Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors, JavaClass jc, JavaClass mostUpperClass) {
+
+        final Map<String, FieldType> mapOfFields = BuildHelper.buildMapOfFields(jc, mapInterfaces, mostUpperClass, getLog());
+        final List<InnerClass> lstInnerClasses = this.getListOfInnerClasses(t, mapInterfaces, mapOfConstructors, jc, mostUpperClass);
+
+        VelocityContext context = new VelocityContext();
+        context.put("isEmbedded", isEmbedded);
+        context.put("package", jc.getPackageName());
+        context.put("className", jc.getName());
+        context.put("fieldMap", mapOfFields);
+        context.put("innerClasses", lstInnerClasses);
+        context.put("display", new DisplayTool());
+        if (isEmbedded) {
+            final String className = jc.getFullyQualifiedName().replace("$","JPA.") + "JPA";
+            context.put("constructors", mapOfConstructors.get(className));
+        }
+        else {
+            final String className = jc.getPackageName() + "." + jc.getName() + "JPA";
+            context.put("constructors", mapOfConstructors.get(className));
+        }
+
+        StringWriter writer = new StringWriter();
+        t.merge( context, writer );
+
+        return writer.toString();
+    }
+
+    /**
+     * Collect all the internal classes body code. In other words, it generates a code for each class
+     * and return all of them as a collection
+     *
+     * @param jc
+     *
+     * @return
+     */
+    private List<InnerClass> getListOfInnerClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors, JavaClass jc, JavaClass mostUpperClass) {
+        final List<JavaClass> nestedClasses = jc.getNestedClasses();
+        if (!nestedClasses.isEmpty()) {
+            final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
+            for (JavaClass nestedClass : nestedClasses) {
+                // render inner class and get the code
+                final String codeOfInnerClassBody = this.getCodeOfClassBody(true, t, mapInterfaces, mapOfConstructors, nestedClass, mostUpperClass);
+                listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
+            }
+            return listBuilder.build();
+        }
+
+        return Lists.newArrayList();
+    }
 
 }

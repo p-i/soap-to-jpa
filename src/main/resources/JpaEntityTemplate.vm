@@ -1,3 +1,11 @@
+#if($isEmbedded)
+
+    /**
+     * Inner class ${className}JPA.
+     **/
+    @Embeddable
+    public static class ${className}JPA {
+#else
 package $package;
 
 import javax.persistence.Entity;
@@ -5,6 +13,8 @@ import javax.persistence.Table;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
+import javax.persistence.Embeddable;
+import javax.persistence.Embedded;
 
 /**
  * GENERATED JPA CONTENT. DO NOT MODIFY!
@@ -13,45 +23,51 @@ import javax.persistence.OneToMany;
  */
 @Entity
 @Table(name = "${className}")
-public class ${className} {
+public class ${className}JPA {
+#end
 
     @Id
     @GeneratedValue
     private Long id;
-
 #*
- The list if private fields
+
+
+    The list if private fields
 *#
 #foreach( $field in $fieldMap.keySet() )
-    #if(${fieldMap.get(${field}).isArrayOfComplextType()})
-
-        @OneToMany
-    #end
+#if(${fieldMap.get(${field}).isArrayOfComplextType()})
+    @OneToMany
+#elseif(${fieldMap.get(${field}).isInnerClass()})
+    @Embedded
+#end
     private ${fieldMap.get($field).render()}  _${field};
 #end
-
-
 #*
-Generate few constructors for each SOAP types assigned with this JPA
+
+
+    Generate few constructors for each SOAP types assigned with this JPA
 *#
 #foreach( $constructor in $constructors )
-
     /**
-     * Constructor, that restores an instance of ${className}
+     * Constructor, that restores an instance of ${className}JPA
      * from SOAP stub $constructor
      *
      * @param stub - instance of typeName <code>${constructor}</code>
      */
-    public ${className}(${constructor} stub) {
+    public ${className}JPA(${constructor} stub) {
 
 #foreach( $field in $fieldMap.keySet() )
-    #set( $currentField = ${fieldMap.get($field)} )
-    #set( $capitalizedFieldName = ${display.capitalize($field)} )
+#set( $currentField = ${fieldMap.get($field)} )
+#set( $capitalizedFieldName = ${display.capitalize($field)} )
+#*
 
-    #if( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
+    Instantiate every field regarding its type
+*#
+#if( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
         this._${field} = stub.get${capitalizedFieldName}();
-    #elseif( ${currentField.isArrayOfComplextType()} )
+#elseif( ${currentField.isArrayOfComplextType()} )
         #*
+
             Transfer an array to a collection and mark it as "One-to-many"
         *#
         if (null != stub.get${capitalizedFieldName}()) {
@@ -61,8 +77,9 @@ Generate few constructors for each SOAP types assigned with this JPA
                 this._${field}.add( new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}()[i]) );
             }
         }
-    #elseif( ${currentField.isCollection()} )
+#elseif( ${currentField.isCollection()} )
         #*
+
             Populate the collection in a loop, creating of a new instance on every iteration
         *#
         if(null != stub.get${capitalizedFieldName}()) {
@@ -71,57 +88,42 @@ Generate few constructors for each SOAP types assigned with this JPA
                 this._${field}.add( obj);
             }
         }
-    #elseif( ${currentField.isComplexType()} )
+#elseif( ${currentField.isComplexType()} )
         if (null != stub.get${capitalizedFieldName}()) {
             this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}());
         }
-    #end
-
 #end
-}
-
 #end
-
-    /**
-     * Get the entity ID
-     */
-    public Long getEntityId() {
-        return this.id;
     }
 
-    /**
-     * Id to be set
-     */
-    public void setEntityId(Long id) {
-        this.id = id;
-    }
+#end
 
-
+        public Long getEntityId() { return this.id; }
+        public void setEntityId(Long id) { this.id = id; }
 #*
- Getters and setters
+
+    Getters and setters
 *#
-    #foreach( $field in $fieldMap.keySet() )
+#foreach( $field in $fieldMap.keySet() )
 
-    /**
-     * Get the entity ${field}
-     */
-    public ${fieldMap.get($field).render()} get${display.capitalize($field)}() {
-        return this._${field};
-    }
-
-    /**
-     * ${field} to be set
-     */
-    public void set${display.capitalize($field)}(${fieldMap.get($field).render()} val) {
-        this._${field} = val;
-    }
-
-    #end
-
-
-
+    ## Getter:
+    public ${fieldMap.get($field).render()} get${display.capitalize($field)}() { return this._${field}; }
+    ## Setter:
+    public void set${display.capitalize($field)}(${fieldMap.get($field).render()} val) { this._${field} = val; }
+#end
 #*
- toString()
+
+    Inner classes
+*#
+#if(!${innerClasses.isEmpty()})
+#foreach($innerClass in $innerClasses)
+        ${innerClass.getSourceCode()}
+        // end of ${innerClass.getClassName()}JPA class
+#end
+#end
+#*
+
+    toString()
 *#
 
     /**
@@ -140,9 +142,8 @@ Generate few constructors for each SOAP types assigned with this JPA
             .toString();
     }
 
-
 #*
- hashCode()
+    hashCode()
 *#
 
     /**
@@ -160,7 +161,7 @@ Generate few constructors for each SOAP types assigned with this JPA
     }
 
 #*
- equals()
+    equals()
 *#
 
     /**
@@ -173,7 +174,7 @@ Generate few constructors for each SOAP types assigned with this JPA
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        final ${className} that = (${className}) o;
+        final ${className}JPA that = (${className}JPA) o;
 
         return com.google.common.base.Objects.equal(this.id, that.id)
 #foreach( $field in $fieldMap.keySet() )

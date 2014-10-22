@@ -6,6 +6,7 @@ import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaMethod;
 import net.pibenchmark.pojo.FieldType;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugin.logging.Log;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -17,9 +18,6 @@ import java.util.Set;
 
 /**
  * Builds one JPA file based on a given interfaces.
- *
- * Debug this plugin:
- *    mvn net.pibenchmark:soap-to-jpa-maven-plugin:1.0-SNAPSHOT:soap-to-jpa
  */
 public class BuildHelper {
 
@@ -51,15 +49,17 @@ public class BuildHelper {
      *
      * @param jc
      * @param mapInterfaces
+     * @param log
      * @return
      */
-    public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces) {
-        Map<String, FieldType> map = Maps.newHashMap();
+    public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces, JavaClass mostUpperClass, Log log) {
+        Map<String, FieldType> map = Maps.newTreeMap();
         boolean isGetter;
+
         for (JavaMethod method : jc.getMethods()) {
             isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());
             if(isGetter) {
-                final FieldType returnType = getReturnType(method, mapInterfaces);
+                final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, log);
                 if (!RESERVED_TYPES.contains(returnType.getTypeName()) && returnType.isDefined()) {
                     map.put(extractFieldName(method.getName()), returnType);
                 }
@@ -74,22 +74,33 @@ public class BuildHelper {
      *
      * @param method
      * @param mapInterfaces
+     * @param log
      * @return type as string
      */
-    static FieldType getReturnType(JavaMethod method, Map<String, String> mapInterfaces) {
+    static FieldType getReturnType(JavaClass jc, JavaMethod method, Map<String, String> mapInterfaces, Log log) {
         final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
+
+        final boolean isTypeInnerClass = strType.contains(jc.getCanonicalName());
 
         if (PRIMITIVES.contains(strType)) {
             return new FieldType(FieldType.PRIMITIVE, strType, strType) ;
         }
         else if (strType.equals(List.class.getTypeName()) || strType.equals(Set.class.getTypeName())) {
-            return new FieldType(FieldType.COLLECTION, method.getReturns().getName(), strType) ;
+            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType) ;
         }
         else if (strType.endsWith("[]")) {
             final String strTypeOfArray = strType.substring(0, strType.length()-2);
+            final boolean isArrayTypeIsSubclass = strTypeOfArray.contains(jc.getCanonicalName());
+
             if (PRIMITIVES.contains(strTypeOfArray)) {
                 // array of primitives
                 return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray) ;
+            }
+            else if (isArrayTypeIsSubclass) {
+                // array of inner class objects
+                return new FieldType(FieldType.ARRAY_OF_INNER_CLASSES,
+                        method.getReturns().getName() + "JPA",
+                        strTypeOfArray) ;
             }
             else {
                 // array of complex types
@@ -97,6 +108,13 @@ public class BuildHelper {
                         mapInterfaces.get(strTypeOfArray),
                         strTypeOfArray) ;
             }
+        }
+        else if (isTypeInnerClass) {
+            if (!mapInterfaces.containsKey(strType)) {
+                log.warn("Can not transfer type " + strType + " to JPA inner class. " +
+                        "Probably, this is a class instead of an interface. This field will be omitted.");
+            }
+            return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType);
         }
         else {
             return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType);
@@ -142,18 +160,10 @@ public class BuildHelper {
      * the subpackage "inners".
      *
      * @param jc
-     * @return array: [0] - package, [1] - class name
+     * @return
      */
-    public static String[] getQualifiedName(JavaClass jc) {
-        final String packageName = jc.isInner() ?
-                (jc.getPackageName() + ".inners")
-                : jc.getPackageName();
-
-        final String className = (jc.isInner() ?
-                        jc.getDeclaringClass().getGenericValue().replace('.', '_') + "_" + jc.getName() :
-                        jc.getName() ) + "JPA";
-
-        return new String[] {packageName, className};
+    public static String getQualifiedName(JavaClass jc) {
+        return jc.getFullyQualifiedName();
     }
 
     /**
@@ -208,7 +218,7 @@ public class BuildHelper {
                 .append(strPackagePath)
                 .append(File.separator)
                 .append(fileName)
-                .append(".java")
+                .append("JPA.java")
                 .toString();
 
         return new File(absPathJpaFile);

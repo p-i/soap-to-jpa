@@ -12,16 +12,18 @@ public class FieldType {
     public static final byte PRIMITIVE = 0;
     public static final byte ARRAY_OF_PRIMITIVES = 1;
     public static final byte ARRAY_OF_COMPLEX_TYPES = 2;
-    public static final byte COLLECTION = 3;
-    public static final byte COMPLEX_TYPE = 4;
+    public static final byte ARRAY_OF_INNER_CLASSES = 3;
+    public static final byte COLLECTION = 4;
+    public static final byte COMPLEX_TYPE = 5;
+    public static final byte INNER_CLASS = 6;
 
     private final String typeName;
     private final String originalTypeName;
     private final byte typeKind;
 
-    public FieldType(byte b, String typeName, String originalTypeName) {
+    public FieldType(byte b, String fullTypeName, String originalTypeName) {
         this.typeKind = b;
-        this.typeName = typeName;
+        this.typeName = fullTypeName;
         this.originalTypeName = originalTypeName;
     }
 
@@ -46,6 +48,7 @@ public class FieldType {
         switch (this.typeKind) {
 
             case ARRAY_OF_COMPLEX_TYPES:
+            case ARRAY_OF_INNER_CLASSES:
                 return List.class.getTypeName() + "<" + this.typeName + ">";
 
             case ARRAY_OF_PRIMITIVES:
@@ -59,14 +62,15 @@ public class FieldType {
         }
     }
 
-    public boolean isPrimitive() {
-        return this.typeKind == PRIMITIVE;
-    }
+    public boolean isPrimitive() { return this.typeKind == PRIMITIVE; }
     public boolean isArrayOfPrimitives() {
         return this.typeKind == ARRAY_OF_PRIMITIVES;
     }
     public boolean isArrayOfComplextType() {
         return this.typeKind == ARRAY_OF_COMPLEX_TYPES;
+    }
+    public boolean isArrayOfInnerClasses() {
+        return this.typeKind == ARRAY_OF_INNER_CLASSES;
     }
     public boolean isCollection() {
         return this.typeKind == COLLECTION;
@@ -74,12 +78,10 @@ public class FieldType {
     public boolean isComplexType() {
         return this.typeKind == COMPLEX_TYPE;
     }
+    public boolean isInnerClass() {
+        return this.typeKind == INNER_CLASS;
+    }
 
-    /**
-     * Checks whether the types was defined or not.
-     *
-     * @return
-     */
     public boolean isDefined() {
         return this.typeName != null;
     }
