@@ -80,7 +80,8 @@ public class BuildHelper {
     static FieldType getReturnType(JavaClass jc, JavaMethod method, Map<String, String> mapInterfaces, Log log) {
         final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
 
-        final boolean isTypeInnerClass = strType.contains(jc.getCanonicalName());
+        final boolean isTypeInnerClass = strType.length() > jc.getCanonicalName().length()
+                                         && strType.startsWith(jc.getCanonicalName());
 
         if (PRIMITIVES.contains(strType)) {
             return new FieldType(FieldType.PRIMITIVE, strType, strType) ;

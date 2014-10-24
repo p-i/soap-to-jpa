@@ -4,7 +4,7 @@
      * Inner class ${className}JPA.
      **/
     @Embeddable
-    public static class ${className}JPA {
+    public static class ${className}JPA implements Serializable {
 #else
 package $package;
 
@@ -15,6 +15,7 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Embeddable;
 import javax.persistence.Embedded;
+import java.io.Serializable;
 
 /**
  * GENERATED JPA CONTENT. DO NOT MODIFY!
@@ -23,12 +24,17 @@ import javax.persistence.Embedded;
  */
 @Entity
 @Table(name = "${className}")
-public class ${className}JPA {
+public class ${className}JPA implements Serializable {
 #end
 
+#if(!${isEmbedded})
     @Id
     @GeneratedValue
     private Long id;
+
+    public Long getEntityId() { return this.id; }
+    public void setEntityId(Long id) { this.id = id; }
+#end
 #*
 
 
@@ -42,6 +48,8 @@ public class ${className}JPA {
 #end
     private ${fieldMap.get($field).render()}  _${field};
 #end
+
+    public ${className}JPA() {}
 #*
 
 
@@ -98,8 +106,6 @@ public class ${className}JPA {
 
 #end
 
-        public Long getEntityId() { return this.id; }
-        public void setEntityId(Long id) { this.id = id; }
 #*
 
     Getters and setters
@@ -118,7 +124,7 @@ public class ${className}JPA {
 #if(!${innerClasses.isEmpty()})
 #foreach($innerClass in $innerClasses)
         ${innerClass.getSourceCode()}
-        // end of ${innerClass.getClassName()}JPA class
+    // end of ${innerClass.getClassName()}JPA class
 #end
 #end
 #*
@@ -134,7 +140,9 @@ public class ${className}JPA {
     @Override
     public java.lang.String toString() {
         return com.google.common.base.Objects.toStringHelper(this)
+#if(!${isEmbedded})
             .add("id", this.id)
+#end
 #foreach( $field in $fieldMap.keySet() )
             .add("${field}", this._${field})
 #end
@@ -157,7 +165,10 @@ public class ${className}JPA {
 #foreach( $field in $fieldMap.keySet() )
             this._${field},
 #end
-        this.id);
+#if(!${isEmbedded})
+            this.id,
+#end
+            31#* just to garantee compileability *#);
     }
 
 #*
@@ -176,10 +187,14 @@ public class ${className}JPA {
 
         final ${className}JPA that = (${className}JPA) o;
 
-        return com.google.common.base.Objects.equal(this.id, that.id)
+        return true
+#if(!${isEmbedded})
+            && com.google.common.base.Objects.equal(this.id, that.id)
+#end
 #foreach( $field in $fieldMap.keySet() )
             && com.google.common.base.Objects.equal(this._${field}, that._${field})
-#end ;
+#end
+            ;
     }
 
 }

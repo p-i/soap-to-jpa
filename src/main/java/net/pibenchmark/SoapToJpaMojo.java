@@ -96,11 +96,11 @@ public class SoapToJpaMojo extends AbstractMojo {
             // collect all interfaces to map "full interface name" <==> "fully qualified JPA name"
             final Map<String, String> mapInterfaces = builder.getClasses()
                     .stream()
-                    .filter( (className) -> !className.toString().endsWith("Factory") && !className.toString().endsWith("Impl") )
-                    .filter( (className) -> className.isInterface() )
+                    .filter( (jc) -> jc.isInterface() )
+                    .filter( (jc) -> !jc.getName().endsWith("Factory") && !jc.getName().endsWith("Impl") )
                     .collect(Collectors.toMap(
                             JavaClass::getCanonicalName,
-                            jc -> BuildHelper.getQualifiedName(jc).replace("$","JPA.") + "JPA"));
+                            jc -> BuildHelper.getQualifiedName(jc).replace("$", "JPA.") + "JPA"));
 
             // map "JPA class name" <==> "Set<full interface name>"
             final Map<String, Set<String>> mapOfConstructors = this.buildMapOfConstructors(mapInterfaces);
@@ -303,9 +303,11 @@ public class SoapToJpaMojo extends AbstractMojo {
         if (!nestedClasses.isEmpty()) {
             final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
             for (JavaClass nestedClass : nestedClasses) {
-                // render inner class and get the code
-                final String codeOfInnerClassBody = this.getCodeOfClassBody(true, t, mapInterfaces, mapOfConstructors, nestedClass, mostUpperClass);
-                listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
+                if (nestedClass.isInterface() && !nestedClass.getName().endsWith("Factory")) {
+                    // render inner class and get the code
+                    final String codeOfInnerClassBody = this.getCodeOfClassBody(true, t, mapInterfaces, mapOfConstructors, nestedClass, mostUpperClass);
+                    listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
+                }
             }
             return listBuilder.build();
         }
