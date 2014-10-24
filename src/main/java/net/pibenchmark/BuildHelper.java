@@ -81,7 +81,7 @@ public class BuildHelper {
         final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
 
         final boolean isTypeInnerClass = strType.length() > jc.getCanonicalName().length()
-                                         && strType.startsWith(jc.getCanonicalName());
+                                          && strType.startsWith(jc.getCanonicalName() + ".");
 
         if (PRIMITIVES.contains(strType)) {
             return new FieldType(FieldType.PRIMITIVE, strType, strType) ;

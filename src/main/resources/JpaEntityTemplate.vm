@@ -1,3 +1,9 @@
+#**
+ This template generates a JPA class body
+
+ @author Ilja Hämäläinen
+ @version 1
+*#
 #if($isEmbedded)
 
     /**
@@ -65,16 +71,16 @@ public class ${className}JPA implements Serializable {
     public ${className}JPA(${constructor} stub) {
 
 #foreach( $field in $fieldMap.keySet() )
-#set( $currentField = ${fieldMap.get($field)} )
-#set( $capitalizedFieldName = ${display.capitalize($field)} )
-#*
-
-    Instantiate every field regarding its type
-*#
+#set($currentField = ${fieldMap.get($field)})
+#set($capitalizedFieldName = ${display.capitalize($field)})
+##
+##
+##    Instantiate every field regarding its type
+##
 #if( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
         this._${field} = stub.get${capitalizedFieldName}();
-#elseif( ${currentField.isArrayOfComplextType()} )
-        #*
+#elseif( ${currentField.isArrayOfComplextType()} )#*
+
 
             Transfer an array to a collection and mark it as "One-to-many"
         *#
@@ -85,8 +91,8 @@ public class ${className}JPA implements Serializable {
                 this._${field}.add( new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}()[i]) );
             }
         }
-#elseif( ${currentField.isCollection()} )
-        #*
+#elseif( ${currentField.isCollection()} )#*
+
 
             Populate the collection in a loop, creating of a new instance on every iteration
         *#
@@ -103,9 +109,7 @@ public class ${className}JPA implements Serializable {
 #end
 #end
     }
-
 #end
-
 #*
 
     Getters and setters
