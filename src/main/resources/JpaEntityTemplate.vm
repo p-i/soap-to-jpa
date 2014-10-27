@@ -1,8 +1,19 @@
 #**
- This template generates a JPA class body
+*
+ This template generates a JPA class body.
+
+ It consists of:
+  - fields
+  - getters/setters
+  - constructor(s)
+  - inner classes
+  - toString()
+  - equals()
+  - hashCode()
 
  @author Ilja Hämäläinen
  @version 1
+
 *#
 #if($isEmbedded)
 
@@ -102,13 +113,14 @@ public class ${className}JPA implements Serializable {
                 this._${field}.add( obj);
             }
         }
-#elseif( ${currentField.isComplexType()} )
+#elseif( ${currentField.isComplexType()} || ${currentField.isInnerClass()} )
         if (null != stub.get${capitalizedFieldName}()) {
             this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}());
         }
 #end
 #end
-    }
+
+    } // end of constructor
 #end
 #*
 
@@ -127,8 +139,7 @@ public class ${className}JPA implements Serializable {
 *#
 #if(!${innerClasses.isEmpty()})
 #foreach($innerClass in $innerClasses)
-        ${innerClass.getSourceCode()}
-    // end of ${innerClass.getClassName()}JPA class
+        ${innerClass.getSourceCode()} // end of ${innerClass.getClassName()}JPA class
 #end
 #end
 #*

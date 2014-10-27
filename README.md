@@ -37,6 +37,7 @@ After executing, this plugin will perform the following actions:
     * toString()
     * equals()
     * hashCode()
+    * inner classes, marked *@Embeddable*
   
 * creates a Factory (*JPAEntitiesFactory*), that can instantiate appropriate JPA object regarding a stub's typeName
 
