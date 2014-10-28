@@ -1,5 +1,6 @@
 package net.pibenchmark;
 
+import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -26,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Mojo( name = "soap-to-jpa")
@@ -56,11 +58,16 @@ public class SoapToJpaMojo extends AbstractMojo {
     @Parameter( defaultValue = "org.apache.maven.soap.jpa.factory", readonly = true )
     private String factoryPackageName;
 
+    @Parameter( defaultValue = "org.apache.maven.soap.jpa.fields", readonly = true )
+    private String fieldsPackageName;
+
     private JavaProjectBuilder builder;
     private File jpaOutputDirectory;
 
     // for the compilation performance, one factory can not contain more than this value of iterations
-    public static final int MAX_ITERATIONS_PER_FACTORY = 50;
+    private static final int MAX_ITERATIONS_PER_FACTORY = 50;
+    private static final String JPA_SUFFIX = "JPA";
+    private static final String FIELDS_SUFFIX = "Fields";
 
     /**
      * Perform some initial stuff for the plugin
@@ -90,6 +97,8 @@ public class SoapToJpaMojo extends AbstractMojo {
         Template jpaTemplate = ve.getTemplate("JpaEntityTemplate.vm");
         Template factoryTemplate = ve.getTemplate("FactoryTemplate.vm");
         Template factoryChunkTemplate = ve.getTemplate("FactoryChunkTemplate.vm");
+        Template fieldsTemplate = ve.getTemplate("FieldsTemplate.vm");
+        Template fieldProviderTemplate = ve.getTemplate("FieldsInterface.vm");
 
         try {
 
@@ -108,14 +117,39 @@ public class SoapToJpaMojo extends AbstractMojo {
             // write all the JPA classes
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
 
+            // write the Fields constants
+            this.generateFieldConstants(fieldsTemplate, mapInterfaces);
+
             // write the Factory class
             this.generateFactoryClass(factoryTemplate, factoryChunkTemplate, mapInterfaces);
 
+            // write IFieldProvider interface
+            this.generateFieldProviderInterface(fieldProviderTemplate);
         }
         catch (Exception e) {
             throw new MojoFailureException(e.getMessage());
         }
 
+    }
+
+    /**
+     * Create Interface for all the field containers
+     *
+     * @param t
+     * @throws MojoFailureException
+     */
+    private void generateFieldProviderInterface(Template t) throws MojoFailureException, IOException {
+
+        final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), this.fieldsPackageName);
+
+        File file = BuildHelper.getFile(packagePath, "IFieldProvider", "");
+        VelocityContext context = new VelocityContext();
+        context.put("package", fieldsPackageName);
+
+        StringWriter writer = new StringWriter();
+        t.merge( context, writer );
+
+        BuildHelper.writeContentToFile(writer.toString(), file);
     }
 
     /**
@@ -148,6 +182,96 @@ public class SoapToJpaMojo extends AbstractMojo {
         });
         return mapOfConstructors;
     }
+
+    /**
+     * Generate files (interfaces) with only constants. This is the name of fields.
+     * Used to build a request to Taleo.
+     *
+     * @param fieldsTemplate
+     * @throws IOException
+     * @throws MojoFailureException
+     */
+    private void generateFieldConstants(Template fieldsTemplate, Map<String, String> mapOfInterfaces) throws IOException, MojoFailureException {
+        getLog().info("Generation of the Field objects...");
+        int cntCreatedFiles = 0;
+        int cntSkippedFiles = 0;
+
+        for (JavaClass jc : builder.getClasses()) {
+            if (jc.isInterface() && !jc.isInner()) {
+
+                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), this.fieldsPackageName);
+
+                File file = BuildHelper.getFile(packagePath, jc.getName(), FIELDS_SUFFIX);
+
+                if (!file.exists()) {
+                    file.createNewFile();
+
+                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces);
+                    BuildHelper.writeContentToFile(classBodyCode, file);
+
+                    cntCreatedFiles++;
+                }
+                else {
+                    cntSkippedFiles++;
+                }
+            }
+        }
+        getLog().info(cntCreatedFiles + " files were generated and " + cntSkippedFiles + " were skipped");
+    }
+
+    /**
+     * Recursive method that collects the list of fields and
+     * @param isEmbedded
+     * @param fieldsTemplate
+     * @param jc
+     * @return
+     */
+    private String getCodeOfInterfaceBody(final boolean isEmbedded, final Template fieldsTemplate, final JavaClass jc, Map<String, String> mapOfInterfaces) {
+
+        // map "field name" <==> "field type"
+        final Map<String, FieldType> mapOfFieldTypes = BuildHelper.buildMapOfFields(jc, mapOfInterfaces, jc, getLog());
+
+        // map "field on LOWER_CASE" <==> "field in CamelCase"
+        final Map<String, String> mapOfFields = mapOfFieldTypes.keySet()
+                .parallelStream()
+                .sorted()
+                .collect(Collectors.toMap(
+                        (field) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, field),
+                        Function.<String>identity()));
+
+        // set of fields with a primitive type (String, numbers...)
+        final Set<String> setOfPrimitives = mapOfFieldTypes.keySet()
+                .parallelStream()
+                .filter((field) -> mapOfFieldTypes.get(field).isPrimitive())
+                .collect(Collectors.toSet());
+
+        final List<JavaClass> nestedClasses = jc.getNestedClasses();
+        final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
+        if (!nestedClasses.isEmpty()) {
+            for (JavaClass nestedClass : nestedClasses) {
+                if (nestedClass.isInterface() && !nestedClass.getName().endsWith("Factory")) {
+                    // render inner class and get the code
+                    final String codeOfInnerClassBody = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces);
+                    listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
+                }
+            }
+        }
+
+        VelocityContext context = new VelocityContext();
+        context.put("package", this.fieldsPackageName);
+        context.put("className", jc.getName());
+        context.put("mapOfFields", mapOfFields);
+        context.put("primitiveFields", setOfPrimitives);
+        context.put("innerClasses", listBuilder.build());
+        context.put("display", new DisplayTool());
+        context.put("isEmbedded", isEmbedded);
+
+        StringWriter writer = new StringWriter();
+        fieldsTemplate.merge( context, writer );
+
+        return writer.toString();
+    }
+
 
     /**
      * Generates one file that can produce an instance of JPA regarding a Soap Stub - factory.
@@ -234,7 +358,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                 final String packageName = jc.getPackageName();
                 final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
 
-                File jpaFile = BuildHelper.getJpaFile(packagePath, jc.getName());
+                File jpaFile = BuildHelper.getFile(packagePath, jc.getName(), JPA_SUFFIX);
 
                 if (!jpaFile.exists()) {
                     jpaFile.createNewFile();

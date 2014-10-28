@@ -213,13 +213,14 @@ public class BuildHelper {
      *
      * @throws IOException
      */
-    public static File getJpaFile(final String strPackagePath, final String fileName) throws IOException {
+    public static File getFile(final String strPackagePath, final String fileName, final String suffix) throws IOException {
 
         final String absPathJpaFile = new StringBuilder()
                 .append(strPackagePath)
                 .append(File.separator)
                 .append(fileName)
-                .append("JPA.java")
+                .append(suffix)
+                .append(".java")
                 .toString();
 
         return new File(absPathJpaFile);
