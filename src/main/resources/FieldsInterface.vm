@@ -31,4 +31,11 @@ public interface IFieldProvider {
     * @return
     */
     String[] getPrimitiveFields();
+
+    /**
+     * Provides an array of only fields with complex type
+     *
+     * @return
+     */
+    String[] getComplexFields();
 }

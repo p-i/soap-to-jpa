@@ -1,5 +1,10 @@
 package $package;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
+import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+
 /**
 * GENERATED JPA CONTENT. DO NOT MODIFY!
 *
@@ -7,18 +12,16 @@ package $package;
 */
 class JPAEntitiesFactoryChunk${chunk} {
 
+    private static final Map<String, Class<? extends Serializable>> mapFactoryInstances = ImmutableMap.<String, Class<? extends Serializable>>builder()
+#foreach( $interface in $interfaces.keySet() )
+        .put("${interface}", ${interfaces.get($interface)}.class)
+#end
+        .build();
+
     /**
      * Creates JPA instance for a given SOAP stub
      */
-    static Object create(Object soapStub) {
-        if (null == soapStub) {
-            throw new IllegalArgumentException("Soap Stub is cannot be null. Factory doesn't know which JPA entity to return.");
-        }
-#foreach( $interface in $interfaces.keySet() )
-        else if (soapStub instanceof ${interface}) {
-            return new ${interfaces.get($interface)}( ($interface) soapStub);
-        }
-#end
-        return null;
+    static Object create(Object soapStub) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+        return mapFactoryInstances.get(soapStub.getClass().getTypeName());
     }
 }

@@ -154,15 +154,16 @@ public class ${className}JPA implements Serializable {
      */
     @Override
     public java.lang.String toString() {
-        return com.google.common.base.Objects.toStringHelper(this)
+        return System.getProperty("line.separator")
+                + com.google.common.base.Objects.toStringHelper(this)
 #if(!${isEmbedded})
-            .add("id", this.id)
+                    .add("id", this.id)
 #end
 #foreach( $field in $fieldMap.keySet() )
-            .add("${field}", this._${field})
+                    .add("${field}", this._${field})
 #end
-            .omitNullValues()
-            .toString();
+                    .omitNullValues()
+                    .toString();
     }
 
 #*
@@ -183,7 +184,7 @@ public class ${className}JPA implements Serializable {
 #if(!${isEmbedded})
             this.id,
 #end
-            31#* just to garantee compileability *#);
+            31#* just to garantee ability to be compiled *#);
     }
 
 #*

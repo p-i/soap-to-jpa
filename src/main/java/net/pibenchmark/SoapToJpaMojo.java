@@ -22,6 +22,7 @@ import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 import org.apache.velocity.tools.generic.DisplayTool;
+import org.apache.velocity.tools.generic.SortTool;
 
 import java.io.File;
 import java.io.IOException;
@@ -96,7 +97,6 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         Template jpaTemplate = ve.getTemplate("JpaEntityTemplate.vm");
         Template factoryTemplate = ve.getTemplate("FactoryTemplate.vm");
-        Template factoryChunkTemplate = ve.getTemplate("FactoryChunkTemplate.vm");
         Template fieldsTemplate = ve.getTemplate("FieldsTemplate.vm");
         Template fieldProviderTemplate = ve.getTemplate("FieldsInterface.vm");
 
@@ -121,7 +121,7 @@ public class SoapToJpaMojo extends AbstractMojo {
             this.generateFieldConstants(fieldsTemplate, mapInterfaces);
 
             // write the Factory class
-            this.generateFactoryClass(factoryTemplate, factoryChunkTemplate, mapInterfaces);
+            this.generateFactory(factoryTemplate, mapInterfaces);
 
             // write IFieldProvider interface
             this.generateFieldProviderInterface(fieldProviderTemplate);
@@ -262,8 +262,10 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("className", jc.getName());
         context.put("mapOfFields", mapOfFields);
         context.put("primitiveFields", setOfPrimitives);
+        context.put("fieldsCount", mapOfFields.size());
         context.put("innerClasses", listBuilder.build());
         context.put("display", new DisplayTool());
+        context.put("sorter", new SortTool());
         context.put("isEmbedded", isEmbedded);
 
         StringWriter writer = new StringWriter();
@@ -272,68 +274,18 @@ public class SoapToJpaMojo extends AbstractMojo {
         return writer.toString();
     }
 
-
-    /**
-     * Generates one file that can produce an instance of JPA regarding a Soap Stub - factory.
-     *
-     * @param factoryTemplate
-     * @param mapInterfaces
-     */
-    private void generateFactoryClass(Template factoryTemplate, Template factoryChunkTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
-        if (MAX_ITERATIONS_PER_FACTORY < mapInterfaces.size()) {
-
-            getLog().info("Generation of the JPA factory chunks...");
-            int chunk = 1;
-            do {
-
-                Map<String, String> subMapInterfaces = Maps.newConcurrentMap();
-
-                Iterator<Map.Entry<String, String>> iterator = mapInterfaces.entrySet().iterator();
-                for (int i = 0; i < MAX_ITERATIONS_PER_FACTORY; i++) {
-                    Map.Entry<String, String> next = iterator.next();
-                    subMapInterfaces.put(next.getKey(), next.getValue());
-                    iterator.remove();
-                }
-                _writeFactoryChunkFile(factoryChunkTemplate, subMapInterfaces, chunk++);
-
-            } while (MAX_ITERATIONS_PER_FACTORY < mapInterfaces.size());
-
-            getLog().info("Factory was too big, so it was splitted to " + --chunk + " chunks");
-            _writeFactoryFile(factoryTemplate, mapInterfaces, chunk);
-        }
-        else {
-            _writeFactoryFile(factoryTemplate, mapInterfaces, 0);
-        }
-    }
-
-    private void _writeFactoryFile(Template factoryTemplate, Map<String, String> mapInterfaces, int chunkNumber) throws IOException, MojoFailureException {
+    private void generateFactory(Template factoryTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
         final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), factoryPackageName);
         File factoryFile = BuildHelper.ensureFactoryFileExists(packagePath, 0);
 
         VelocityContext context = new VelocityContext();
         context.put("package", factoryPackageName);
         context.put("interfaces", mapInterfaces);
-        context.put("chunkNumber", chunkNumber);
 
         StringWriter writer = new StringWriter();
         factoryTemplate.merge( context, writer );
 
         BuildHelper.writeContentToFile(writer.toString(), factoryFile);
-    }
-
-    private void _writeFactoryChunkFile(Template factoryChunkTemplate, Map<String, String> mapInterfaces, int chunk) throws IOException, MojoFailureException {
-        final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), factoryPackageName);
-        File factoryChunkFile = BuildHelper.ensureFactoryFileExists(packagePath, chunk);
-
-        VelocityContext context = new VelocityContext();
-        context.put("package", factoryPackageName);
-        context.put("interfaces", mapInterfaces);
-        context.put("chunk", chunk);
-
-        StringWriter writer = new StringWriter();
-        factoryChunkTemplate.merge( context, writer );
-
-        BuildHelper.writeContentToFile(writer.toString(), factoryChunkFile);
     }
 
     /**
