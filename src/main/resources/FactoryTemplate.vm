@@ -2,7 +2,6 @@ package $package;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 
 /**
@@ -12,11 +11,13 @@ import java.lang.reflect.InvocationTargetException;
 */
 public class JPAEntitiesFactory {
 
-    private static final Map<String, Class<? extends Serializable>> mapFactoryInstances = ImmutableMap.<String, Class<? extends Serializable>>builder()
+    // build the map "interface FQN" <==> "Fields class"
+    private static final Map<String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapFactoryInstances
+                                    = ImmutableMap.<String, Class<? extends ${fieldsPackage}.IFieldProvider>>builder()
 #foreach( $interface in $interfaces.keySet() )
-        .put("${interface}", ${interfaces.get($interface)}.class)
+        .put("${interface}", ${fieldsPackage}.${interfaces.get($interface)}.class)
 #end
-      .build();
+        .build();
 
     private static JPAEntitiesFactory _instance;
 
@@ -33,9 +34,9 @@ public class JPAEntitiesFactory {
     }
 
     /**
-     * Creates JPA instance for a given SOAP stub
+     * Creates Field file instance for a given SOAP stub
      */
-    public Object create(Object soapStub) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+    public ${fieldsPackage}.IFieldProvider create(Object soapStub) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
         if (null == soapStub) {
             throw new IllegalArgumentException("Soap Stub is cannot be null. Factory doesn't know which JPA entity to return.");
         }
@@ -47,13 +48,13 @@ public class JPAEntitiesFactory {
                 + " (interface is " + soapStubInterface + ") was not found.");
         }
         else {
-            Class<? extends Serializable> clazz = mapFactoryInstances.get(soapStubInterface);
+            Class<? extends ${fieldsPackage}.IFieldProvider> clazz = mapFactoryInstances.get(soapStubInterface);
                 for (int i = 0; i < clazz.getDeclaredConstructors().length; i++) {
                         System.out.println(">> found cunstructor "
                             + clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName()
                             + "; soap type ois " + soapStubInterface);
                         if (clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName().equals(soapStubInterface)) {
-                            return clazz.getDeclaredConstructors()[0].newInstance(soapStub);
+                            return (${fieldsPackage}.IFieldProvider) clazz.getDeclaredConstructors()[0].newInstance(soapStub);
                         }
                    }
             return null;

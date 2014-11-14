@@ -38,4 +38,13 @@ public interface IFieldProvider {
      * @return
      */
     String[] getComplexFields();
+
+    /**
+     * Provides the array of all the pathes, that
+     * sould be used in SQ queries. It contains name of simple fields
+     * and path for nested complex object IDs.
+     *
+     * @return String[]
+     */
+    java.util.List<java.lang.String> getPathes();
 }

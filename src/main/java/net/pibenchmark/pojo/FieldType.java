@@ -1,6 +1,8 @@
 package net.pibenchmark.pojo;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
+import net.pibenchmark.CastType;
 
 import java.util.List;
 
@@ -21,10 +23,15 @@ public class FieldType {
     private final String originalTypeName;
     private final byte typeKind;
 
+    // if original type does not match target type
+    private boolean isShouldBeCasted;
+    private CastType castType;
+
     public FieldType(byte b, String fullTypeName, String originalTypeName) {
         this.typeKind = b;
         this.typeName = fullTypeName;
         this.originalTypeName = originalTypeName;
+        this.isShouldBeCasted = false;
     }
 
     public String getTypeName() {
@@ -37,6 +44,18 @@ public class FieldType {
 
     public String getOriginalTypeName() {
         return originalTypeName;
+    }
+
+    public void setShouldBeCasted(boolean isShouldBeCasted) {
+        this.isShouldBeCasted = isShouldBeCasted;
+    }
+
+    public void cast(String from, String to) {
+        this.castType = CastType.of(from,to);
+    }
+
+    public CastType getCastType() {
+        return castType;
     }
 
     /**
@@ -85,6 +104,7 @@ public class FieldType {
     public boolean isDefined() {
         return this.typeName != null;
     }
+    public boolean isShouldBeCasted() { return this.isShouldBeCasted; }
 
     @Override
     public boolean equals(Object o) {
@@ -108,7 +128,7 @@ public class FieldType {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("typeName", typeName)
                 .add("originalTypeName", originalTypeName)
                 .add("typeKind", typeKind)

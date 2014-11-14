@@ -21,7 +21,16 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.apache.velocity.tools.Scope;
+import org.apache.velocity.tools.ToolContext;
+import org.apache.velocity.tools.ToolManager;
+import org.apache.velocity.tools.Toolbox;
+import org.apache.velocity.tools.config.FactoryConfiguration;
+import org.apache.velocity.tools.config.Property;
+import org.apache.velocity.tools.config.ToolConfiguration;
+import org.apache.velocity.tools.config.ToolboxConfiguration;
 import org.apache.velocity.tools.generic.DisplayTool;
+import org.apache.velocity.tools.generic.FieldTool;
 import org.apache.velocity.tools.generic.SortTool;
 
 import java.io.File;
@@ -62,11 +71,16 @@ public class SoapToJpaMojo extends AbstractMojo {
     @Parameter( defaultValue = "org.apache.maven.soap.jpa.fields", readonly = true )
     private String fieldsPackageName;
 
+    @Parameter( defaultValue = "id", readonly = true )
+    private String fieldNameUsedAsIdentityName;
+
+    @Parameter( defaultValue = "java.lang.Long", readonly = true )
+    private String fieldNameUsedAsIdentityType;
+
     private JavaProjectBuilder builder;
     private File jpaOutputDirectory;
 
     // for the compilation performance, one factory can not contain more than this value of iterations
-    private static final int MAX_ITERATIONS_PER_FACTORY = 50;
     private static final String JPA_SUFFIX = "JPA";
     private static final String FIELDS_SUFFIX = "Fields";
 
@@ -114,14 +128,17 @@ public class SoapToJpaMojo extends AbstractMojo {
             // map "JPA class name" <==> "Set<full interface name>"
             final Map<String, Set<String>> mapOfConstructors = this.buildMapOfConstructors(mapInterfaces);
 
+            // Map "soap interface" <==> "Fields file"
+            final Map<String, String> mapOfFieldFiles = Maps.newHashMap();
+
             // write all the JPA classes
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
 
             // write the Fields constants
-            this.generateFieldConstants(fieldsTemplate, mapInterfaces);
+            this.generateFieldConstants(fieldsTemplate, mapInterfaces, mapOfFieldFiles);
 
             // write the Factory class
-            this.generateFactory(factoryTemplate, mapInterfaces);
+            this.generateFactory(factoryTemplate, mapOfFieldFiles);
 
             // write IFieldProvider interface
             this.generateFieldProviderInterface(fieldProviderTemplate);
@@ -191,7 +208,7 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @throws IOException
      * @throws MojoFailureException
      */
-    private void generateFieldConstants(Template fieldsTemplate, Map<String, String> mapOfInterfaces) throws IOException, MojoFailureException {
+    private void generateFieldConstants(Template fieldsTemplate, Map<String, String> mapOfInterfaces, Map<String, String> mapAccumulator) throws IOException, MojoFailureException {
         getLog().info("Generation of the Field objects...");
         int cntCreatedFiles = 0;
         int cntSkippedFiles = 0;
@@ -206,7 +223,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                 if (!file.exists()) {
                     file.createNewFile();
 
-                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces);
+                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces, mapAccumulator);
                     BuildHelper.writeContentToFile(classBodyCode, file);
 
                     cntCreatedFiles++;
@@ -226,10 +243,15 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @param jc
      * @return
      */
-    private String getCodeOfInterfaceBody(final boolean isEmbedded, final Template fieldsTemplate, final JavaClass jc, Map<String, String> mapOfInterfaces) {
+    private String getCodeOfInterfaceBody(final boolean isEmbedded, final Template fieldsTemplate, final JavaClass jc, Map<String, String> mapOfInterfaces, Map<String, String> mapAccumulator) {
 
         // map "field name" <==> "field type"
-        final Map<String, FieldType> mapOfFieldTypes = BuildHelper.buildMapOfFields(jc, mapOfInterfaces, jc, getLog());
+        final Map<String, FieldType> mapOfFieldTypes = BuildHelper.buildMapOfFields(jc,
+                mapOfInterfaces,
+                jc,
+                getLog(),
+                this.fieldNameUsedAsIdentityName,
+                this.fieldNameUsedAsIdentityType);
 
         // map "field on LOWER_CASE" <==> "field in CamelCase"
         final Map<String, String> mapOfFields = mapOfFieldTypes.keySet()
@@ -251,11 +273,15 @@ public class SoapToJpaMojo extends AbstractMojo {
             for (JavaClass nestedClass : nestedClasses) {
                 if (nestedClass.isInterface() && !nestedClass.getName().endsWith("Factory")) {
                     // render inner class and get the code
-                    final String codeOfInnerClassBody = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces);
+                    final String codeOfInnerClassBody = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapAccumulator);
                     listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
                 }
             }
         }
+
+        // collect the interface full name and according Field class (without package)
+        mapAccumulator.put(jc.getCanonicalName(),
+                jc.getFullyQualifiedName().replace(jc.getPackageName() + ".", "").replace("$", "Fields.") + "Fields");
 
         VelocityContext context = new VelocityContext();
         context.put("package", this.fieldsPackageName);
@@ -267,6 +293,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("display", new DisplayTool());
         context.put("sorter", new SortTool());
         context.put("isEmbedded", isEmbedded);
+        context.put("identField", this.fieldNameUsedAsIdentityName);
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );
@@ -274,13 +301,14 @@ public class SoapToJpaMojo extends AbstractMojo {
         return writer.toString();
     }
 
-    private void generateFactory(Template factoryTemplate, Map<String, String> mapInterfaces) throws IOException, MojoFailureException {
+    private void generateFactory(Template factoryTemplate, Map<String, String> mapFieldFiles) throws IOException, MojoFailureException {
         final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), factoryPackageName);
         File factoryFile = BuildHelper.ensureFactoryFileExists(packagePath, 0);
 
         VelocityContext context = new VelocityContext();
         context.put("package", factoryPackageName);
-        context.put("interfaces", mapInterfaces);
+        context.put("interfaces", mapFieldFiles);
+        context.put("fieldsPackage", this.fieldsPackageName);
 
         StringWriter writer = new StringWriter();
         factoryTemplate.merge( context, writer );
@@ -341,7 +369,13 @@ public class SoapToJpaMojo extends AbstractMojo {
      */
     private String getCodeOfClassBody(boolean isEmbedded, Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors, JavaClass jc, JavaClass mostUpperClass) {
 
-        final Map<String, FieldType> mapOfFields = BuildHelper.buildMapOfFields(jc, mapInterfaces, mostUpperClass, getLog());
+        final Map<String, FieldType> mapOfFields = BuildHelper.buildMapOfFields(jc,
+                mapInterfaces,
+                mostUpperClass,
+                getLog(),
+                this.fieldNameUsedAsIdentityName,
+                this.fieldNameUsedAsIdentityType);
+
         final List<InnerClass> lstInnerClasses = this.getListOfInnerClasses(t, mapInterfaces, mapOfConstructors, jc, mostUpperClass);
 
         VelocityContext context = new VelocityContext();
@@ -351,6 +385,9 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("fieldMap", mapOfFields);
         context.put("innerClasses", lstInnerClasses);
         context.put("display", new DisplayTool());
+        context.put("identityFieldName", this.fieldNameUsedAsIdentityName);
+        context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
+
         if (isEmbedded) {
             final String className = jc.getFullyQualifiedName().replace("$","JPA.") + "JPA";
             context.put("constructors", mapOfConstructors.get(className));

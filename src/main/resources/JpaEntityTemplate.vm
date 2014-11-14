@@ -47,10 +47,10 @@ public class ${className}JPA implements Serializable {
 #if(!${isEmbedded})
     @Id
     @GeneratedValue
-    private Long id;
+    private ${identityFieldType} _${identityFieldName};
 
-    public Long getEntityId() { return this.id; }
-    public void setEntityId(Long id) { this.id = id; }
+    public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
+    public void set${display.capitalize($identityFieldName)}(${identityFieldType} id) { this._${identityFieldName} = id; }
 #end
 #*
 
@@ -63,7 +63,9 @@ public class ${className}JPA implements Serializable {
 #elseif(${fieldMap.get(${field}).isInnerClass()})
     @Embedded
 #end
+#if(${field} != ${identityFieldName})
     private ${fieldMap.get($field).render()}  _${field};
+#end
 #end
 
     public ${className}JPA() {}
@@ -88,7 +90,9 @@ public class ${className}JPA implements Serializable {
 ##
 ##    Instantiate every field regarding its type
 ##
-#if( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
+#if( ${currentField.isShouldBeCasted()} )
+    #parse("CastField.vm")
+#elseif( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
         this._${field} = stub.get${capitalizedFieldName}();
 #elseif( ${currentField.isArrayOfComplextType()} )#*
 
@@ -127,11 +131,12 @@ public class ${className}JPA implements Serializable {
     Getters and setters
 *#
 #foreach( $field in $fieldMap.keySet() )
-
+#if(${field} != ${identityFieldName})
     ## Getter:
     public ${fieldMap.get($field).render()} get${display.capitalize($field)}() { return this._${field}; }
     ## Setter:
     public void set${display.capitalize($field)}(${fieldMap.get($field).render()} val) { this._${field} = val; }
+#end
 #end
 #*
 
@@ -157,7 +162,7 @@ public class ${className}JPA implements Serializable {
         return System.getProperty("line.separator")
                 + com.google.common.base.Objects.toStringHelper(this)
 #if(!${isEmbedded})
-                    .add("id", this.id)
+                    .add("_${identityFieldName}", this._${identityFieldName})
 #end
 #foreach( $field in $fieldMap.keySet() )
                     .add("${field}", this._${field})
@@ -182,7 +187,7 @@ public class ${className}JPA implements Serializable {
             this._${field},
 #end
 #if(!${isEmbedded})
-            this.id,
+            this._${identityFieldName},
 #end
             31#* just to garantee ability to be compiled *#);
     }
@@ -205,7 +210,7 @@ public class ${className}JPA implements Serializable {
 
         return true
 #if(!${isEmbedded})
-            && com.google.common.base.Objects.equal(this.id, that.id)
+            && com.google.common.base.Objects.equal(this._${identityFieldName}, that._${identityFieldName})
 #end
 #foreach( $field in $fieldMap.keySet() )
             && com.google.common.base.Objects.equal(this._${field}, that._${field})

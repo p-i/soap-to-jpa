@@ -1,0 +1,18 @@
+#**
+*
+ This template is used to produce code that casts one type to another
+
+ @author Ilja Hämäläinen
+ @version 1
+
+*#
+
+#if(${currentField.getCastType()} == "STRING_TO_LONG")
+        this._${field} = java.lang.Long.parseLong(stub.get${capitalizedFieldName}());
+#elseif(${currentField.getCastType()} == "STRING_TO_INT")
+        this._${field} = java.lang.Integer.parseInteger(stub.get${capitalizedFieldName}());
+#elseif(${currentField.getCastType()} == "STRING_TO_FLOAT")
+        this._${field} = java.lang.Float.parseFloat(stub.get${capitalizedFieldName}());
+#else
+
+#end

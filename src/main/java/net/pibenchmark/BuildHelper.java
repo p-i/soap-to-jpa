@@ -52,7 +52,9 @@ public class BuildHelper {
      * @param log
      * @return
      */
-    public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces, JavaClass mostUpperClass, Log log) {
+    public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces,
+                                                          JavaClass mostUpperClass, Log log, String idFieldName, String idFieldType) {
+
         Map<String, FieldType> map = Maps.newTreeMap();
         boolean isGetter;
 
@@ -61,7 +63,15 @@ public class BuildHelper {
             if(isGetter) {
                 final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, log);
                 if (!RESERVED_TYPES.contains(returnType.getTypeName()) && returnType.isDefined()) {
-                    map.put(extractFieldName(method.getName()), returnType);
+                    final String fieldName = extractFieldName(method.getName());
+                    if (fieldName.equals(idFieldName)) {
+                        final boolean isCastingNeeded = !returnType.getOriginalTypeName().equals(idFieldType);
+                        if (isCastingNeeded) {
+                            returnType.setShouldBeCasted(isCastingNeeded);
+                            returnType.cast(returnType.getOriginalTypeName(), idFieldType);
+                        }
+                    }
+                    map.put(fieldName, returnType);
                 }
             }
         }
@@ -84,10 +94,10 @@ public class BuildHelper {
                                           && strType.startsWith(jc.getCanonicalName() + ".");
 
         if (PRIMITIVES.contains(strType)) {
-            return new FieldType(FieldType.PRIMITIVE, strType, strType) ;
+            return new FieldType(FieldType.PRIMITIVE, strType, strType);
         }
         else if (strType.equals(List.class.getTypeName()) || strType.equals(Set.class.getTypeName())) {
-            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType) ;
+            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType);
         }
         else if (strType.endsWith("[]")) {
             final String strTypeOfArray = strType.substring(0, strType.length()-2);
@@ -95,19 +105,19 @@ public class BuildHelper {
 
             if (PRIMITIVES.contains(strTypeOfArray)) {
                 // array of primitives
-                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray) ;
+                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray);
             }
             else if (isArrayTypeIsSubclass) {
                 // array of inner class objects
                 return new FieldType(FieldType.ARRAY_OF_INNER_CLASSES,
                         method.getReturns().getName() + "JPA",
-                        strTypeOfArray) ;
+                        strTypeOfArray);
             }
             else {
                 // array of complex types
                 return new FieldType(FieldType.ARRAY_OF_COMPLEX_TYPES,
                         mapInterfaces.get(strTypeOfArray),
-                        strTypeOfArray) ;
+                        strTypeOfArray);
             }
         }
         else if (isTypeInnerClass) {

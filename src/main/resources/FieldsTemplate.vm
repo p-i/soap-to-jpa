@@ -72,6 +72,7 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      * {@inheritDoc}
      *
      */
+    @Override
     public String[] getAllFileds() {
         return this.ALL;
     }
@@ -80,7 +81,8 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      * {@inheritDoc}
      *
      */
-    public String[] getPrimitiveFields(){
+    @Override
+    public String[] getPrimitiveFields() {
         return this.SIMPLE_FIELDS;
     }
 
@@ -88,8 +90,28 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      * {@inheritDoc}
      *
      */
-    public String[] getComplexFields(){
+    @Override
+    public String[] getComplexFields() {
         return this.COMPLEX_FIELDS;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public java.util.List<java.lang.String> getPathes() {
+        return com.google.common.collect.ImmutableList.of(
+#foreach( $field in $sorter.sort($mapOfFields.keySet()) )
+    #if( $primitiveFields.contains($mapOfFields.get($field)) )
+        ${field}#if($foreach.hasNext), #end
+
+    #else
+        ${field} + ",${display.capitalize($identField)}"#if($foreach.hasNext), #end
+
+    #end
+#end
+        );
     }
 #*
 

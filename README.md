@@ -122,19 +122,15 @@ Configuration
 -----
  
 There are few parameters that you may use to adjust your work with the plugin.
- 
-**generatedSoapStubsDir**
 
-The path where plugin should search for the generated SOAP stubs interfaces.
 
-Default value: *"${project.build.directory}/generated-sources/axis2/wsdl2code/src"* (default output directory for [Apache Axis2](http://axis.apache.org/axis2/java/core) framework)
-
-**factoryPackageName**
-
-Besides JPA files, the plugin generates also the factory, allowing to instantiate an appropriate JPA object regarding the stub typeName. The class name is **JPAEntitiesFactory**.
-This parameter will set the package name where this factory should be generated.
-
-Default value: *"org.apache.maven.soap.jpa.factory"*
+| parameter | description | default value |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| **generatedSoapStubsDir**   | The path where plugin should search for the generated SOAP stubs interfaces. | *"${project.build.directory}/generated-sources/axis2/wsdl2code/src"* (default output directory for [Apache Axis2](http://axis.apache.org/axis2/java/core) framework) |
+| **factoryPackageName**      | Besides JPA files, the plugin generates also the factory, allowing to instantiate an appropriate JPA object regarding the stub typeName. The class name is **JPAEntitiesFactory**. This parameter will set the package name where this factory should be generated. | *"org.apache.maven.soap.jpa.factory"* |
+| **fieldsPackageName**       | The plugin generates the for each entity additional class *[EntityName]Fields*, containing all the list of used fields. The parameter specifies where to put these files                                                                                            | *"org.apache.maven.soap.jpa.fields"* |
+| **fieldNameUsedAsIdentityName** | The name of field that should be treated as unique ID  | *"id"* |
+| **fieldNameUsedAsIdentityType** | Type of Unique field (FQN) | *"java.lang.Long"* |
 
 You can specify these parameters in the following way:
 
