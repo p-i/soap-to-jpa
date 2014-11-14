@@ -44,7 +44,7 @@ public class JPAEntitiesFactory {
         final String soapStubInterface = soapStub.getClass().getInterfaces()[0].getTypeName();
 
         if (!mapFactoryInstances.containsKey(soapStubInterface)) {
-            throw new RuntimeException("JPA Realisation for the " + soapStub
+            throw new RuntimeException("Fields realisation for the " + soapStub
                 + " (interface is " + soapStubInterface + ") was not found.");
         }
         else {
@@ -54,7 +54,7 @@ public class JPAEntitiesFactory {
                             + clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName()
                             + "; soap type ois " + soapStubInterface);
                         if (clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName().equals(soapStubInterface)) {
-                            return (${fieldsPackage}.IFieldProvider) clazz.getDeclaredConstructors()[0].newInstance(soapStub);
+                            return (${fieldsPackage}.IFieldProvider) clazz.newInstance();
                         }
                    }
             return null;

@@ -65,6 +65,11 @@ As long this plugin is not (yet) presented in the Central Maven Repository, you 
                 <artifactId>guava</artifactId>
                 <version>17.0</version>
             </dependency>
+            <dependency>
+                <groupId>commons-lang</groupId>
+                <artifactId>commons-lang</artifactId>
+                <version>2.6</version>
+            </dependency>
 ```
 
 and
@@ -76,6 +81,8 @@ and
                 <version>1.0-SNAPSHOT</version>
             </plugin>
 ```
+
+2a. Make sure, that you use Java 8 or higher
 
 3. Run the command *on your project* where the soap-to-jpa plugin was included (after you have generated SOAP stubs):
  

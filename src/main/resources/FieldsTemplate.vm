@@ -18,6 +18,12 @@ public static class ${className}Fields implements IFieldProvider {
 #else
 package ${package};
 
+import com.taleo.stubs.factory.JPAEntitiesFactory;
+import org.apache.commons.lang.reflect.MethodUtils;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.stream.Stream;
+
 /**
  * GENERATED JPA CONTENT. DO NOT MODIFY!
  *
@@ -25,6 +31,9 @@ package ${package};
  */
 public class ${className}Fields implements ${package}.IFieldProvider {
 #end
+
+    private Object soapObject;
+    private Object jpaObject;
 #*
 
 
@@ -100,19 +109,82 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      *
      */
     @Override
+    public String getProjectedClassName() {
+        return "${className}";
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public ${className}Fields initiateJPA(final Object soapStub) {
+        this.soapObject = soapObject;
+        this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public ${className}Fields forEachSubclass(final IFunctionLoadInnerClasses lambda) {
+        Stream.of(this.getComplexFields())
+            .parallel()
+            .forEach((fieldName) -> {
+                try {
+
+                    // get inner object by calling getter from SOAP stub
+                    final Object subClassObject = MethodUtils.invokeMethod(this.soapObject, "get" + fieldName, new Object[0]);
+                    // load JPA using labmda populated with data
+                    final IFieldProvider fieldProvider = JPAEntitiesFactory.getInstance().create(subClassObject);
+                    Object objJPA = lambda.load(fieldProvider, 1L);
+                    // set new JPA sub-object to current JPA calling setter
+                    MethodUtils.invokeMethod(this.jpaObject, "set" + fieldName, new Object[]{ objJPA });
+
+                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+                    e.printStackTrace();
+                }
+            });
+        return this;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public Object build() {
+        return this.jpaObject;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
     public java.util.List<java.lang.String> getPathes() {
         return com.google.common.collect.ImmutableList.of(
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
-    #if( $primitiveFields.contains($mapOfFields.get($field)) )
-        ${field}#if($foreach.hasNext), #end
+#if( $primitiveFields.contains($mapOfFields.get($field)) )
+            ${field}#if($foreach.hasNext), #end
 
-    #else
-        ${field} + ",${display.capitalize($identField)}"#if($foreach.hasNext), #end
+#else
+            ${field} + ",${display.capitalize($identField)}"#if($foreach.hasNext), #end
 
-    #end
+#end
 #end
         );
     }
+
+    /*
+without ID:
+#foreach( $field in $withoutIdentity )
+    $field
+#end
+    */
 #*
 
 

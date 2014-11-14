@@ -47,4 +47,43 @@ public interface IFieldProvider {
      * @return String[]
      */
     java.util.List<java.lang.String> getPathes();
+
+    /**
+     * Returns the class Simple name (without package) that is used to build an Query (e.g "Projection")
+     */
+    String getProjectedClassName();
+
+    /**
+     * Initiates JPA class and populates it with a data from SOAP object.
+     *
+     * @param soapStub - SOAP stub. Expected that it should contain only simple data
+     */
+    IFieldProvider initiateJPA(Object soapStub);
+
+    /**
+     * Calls lambda for each subcluss of the JPA object that was created
+     * with {@code initiateJPA()} method
+     */
+    IFieldProvider forEachSubclass(IFunctionLoadInnerClasses lambda);
+
+    /**
+     * Build ready JPA object populated with data
+     */
+    Object build();
+
+    /**
+     * Interface for lambda, used to make actual network call for an object
+     */
+    @FunctionalInterface
+    public interface IFunctionLoadInnerClasses {
+
+        /**
+         * Prepares remote call to remote server and returns an JPA object
+         * populated with simple data
+         *
+         * @params stubProvider - field provider for the object we are goind to request
+         * @params id - identity for this object
+         */
+        Object load(IFieldProvider stubProvider, long id);
+    }
 }

@@ -7,8 +7,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
+import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
 import net.pibenchmark.pojo.FieldType;
 import net.pibenchmark.pojo.InnerClass;
+import org.apache.commons.lang.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -267,6 +269,23 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .filter((field) -> mapOfFieldTypes.get(field).isPrimitive())
                 .collect(Collectors.toSet());
 
+        // set of complex field names that do not have identity fields (or getter for ID)
+        final Set<String> setOfIdentitylessObjects = mapOfFieldTypes
+                .keySet()
+                .parallelStream()
+                .filter((fieldName) -> {
+                    if (!setOfPrimitives.contains(fieldName)) {
+                        final String originalType = mapOfFieldTypes.get(fieldName).getOriginalTypeName();
+                        final JavaClass javaClass = new DefaultJavaClass(originalType);
+                        final boolean hasNumber = (null != javaClass.getMethod("get" + StringUtils.capitalize(this.fieldNameUsedAsIdentityName), null, false));
+                        return !hasNumber;
+                    } else {
+                        return false;
+                    }
+                })
+                .map((fieldName) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, fieldName))
+                .collect(Collectors.toSet());
+
         final List<JavaClass> nestedClasses = jc.getNestedClasses();
         final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
         if (!nestedClasses.isEmpty()) {
@@ -294,6 +313,9 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("sorter", new SortTool());
         context.put("isEmbedded", isEmbedded);
         context.put("identField", this.fieldNameUsedAsIdentityName);
+        context.put("jpaClass", mapOfInterfaces.get(jc.getCanonicalName()));
+        context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
+        context.put("withoutIdentity", setOfIdentitylessObjects);
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );
