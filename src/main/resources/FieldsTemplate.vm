@@ -168,23 +168,17 @@ public class ${className}Fields implements ${package}.IFieldProvider {
     public java.util.List<java.lang.String> getPathes() {
         return com.google.common.collect.ImmutableList.of(
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
+#set($currentField = ${display.capitalize($mapOfFields.get($field))})
 #if( $primitiveFields.contains($mapOfFields.get($field)) )
-            ${field}#if($foreach.hasNext), #end
+            "${currentField}"#if($foreach.hasNext), #end
 
 #else
-            ${field} + ",${display.capitalize($identField)}"#if($foreach.hasNext), #end
+            "${currentField},${innerClassFields.get($currentField)}.${display.capitalize($identField)}"#if($foreach.hasNext), #end
 
 #end
 #end
         );
     }
-
-    /*
-without ID:
-#foreach( $field in $withoutIdentity )
-    $field
-#end
-    */
 #*
 
 

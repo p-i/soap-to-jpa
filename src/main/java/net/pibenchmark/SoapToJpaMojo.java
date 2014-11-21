@@ -1,10 +1,7 @@
 package net.pibenchmark;
 
 import com.google.common.base.CaseFormat;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
@@ -225,7 +222,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                 if (!file.exists()) {
                     file.createNewFile();
 
-                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces, mapAccumulator);
+                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces, mapAccumulator)[1];
                     BuildHelper.writeContentToFile(classBodyCode, file);
 
                     cntCreatedFiles++;
@@ -239,13 +236,17 @@ public class SoapToJpaMojo extends AbstractMojo {
     }
 
     /**
-     * Recursive method that collects the list of fields and
+     * Recursive method that collects the list of fields and other useful methods to build up a queries
+     *
      * @param isEmbedded
      * @param fieldsTemplate
      * @param jc
-     * @return
+     *
+     * @return String array:
+     *  [0] - the first field from inner class
+     *  [1] - the class code ready to be saved to a file
      */
-    private String getCodeOfInterfaceBody(final boolean isEmbedded, final Template fieldsTemplate, final JavaClass jc, Map<String, String> mapOfInterfaces, Map<String, String> mapAccumulator) {
+    private String[] getCodeOfInterfaceBody(final boolean isEmbedded, final Template fieldsTemplate, final JavaClass jc, Map<String, String> mapOfInterfaces, Map<String, String> mapAccumulator) {
 
         // map "field name" <==> "field type"
         final Map<String, FieldType> mapOfFieldTypes = BuildHelper.buildMapOfFields(jc,
@@ -286,14 +287,19 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .map((fieldName) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, fieldName))
                 .collect(Collectors.toSet());
 
+
         final List<JavaClass> nestedClasses = jc.getNestedClasses();
-        final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
+        final ImmutableList.Builder<InnerClass> lstInnerClassesBuilder = ImmutableList.builder();
+        // map "inner class name" <==> "its first (obviously, only one) field name"
+        final ImmutableMap.Builder<String, String> mapInnerClassFirstField = ImmutableMap.builder();
+
         if (!nestedClasses.isEmpty()) {
             for (JavaClass nestedClass : nestedClasses) {
                 if (nestedClass.isInterface() && !nestedClass.getName().endsWith("Factory")) {
                     // render inner class and get the code
-                    final String codeOfInnerClassBody = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapAccumulator);
-                    listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
+                    final String[] innerClass = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapAccumulator);
+                    mapInnerClassFirstField.put(nestedClass.getName(), innerClass[0]);
+                    lstInnerClassesBuilder.add(new InnerClass(nestedClass.getName(), innerClass[1] ));
                 }
             }
         }
@@ -308,19 +314,23 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("mapOfFields", mapOfFields);
         context.put("primitiveFields", setOfPrimitives);
         context.put("fieldsCount", mapOfFields.size());
-        context.put("innerClasses", listBuilder.build());
+        context.put("innerClasses", lstInnerClassesBuilder.build());
+        context.put("innerClassFields", mapInnerClassFirstField.build());
         context.put("display", new DisplayTool());
         context.put("sorter", new SortTool());
         context.put("isEmbedded", isEmbedded);
         context.put("identField", this.fieldNameUsedAsIdentityName);
         context.put("jpaClass", mapOfInterfaces.get(jc.getCanonicalName()));
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
-        context.put("withoutIdentity", setOfIdentitylessObjects);
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );
 
-        return writer.toString();
+        // get the very first field of current class. It will be used to build the path containing inner classes
+        final Iterator<String> iterator = mapOfFieldTypes.keySet().iterator();
+        final String strFirstFieldOfInnerClass = iterator.hasNext() ? StringUtils.capitalize(iterator.next()) : "";
+
+        return new String[]{ strFirstFieldOfInnerClass, writer.toString() };
     }
 
     private void generateFactory(Template factoryTemplate, Map<String, String> mapFieldFiles) throws IOException, MojoFailureException {
