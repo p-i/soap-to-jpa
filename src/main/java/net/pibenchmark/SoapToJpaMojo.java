@@ -8,6 +8,7 @@ import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
 import net.pibenchmark.pojo.FieldType;
 import net.pibenchmark.pojo.InnerClass;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -82,6 +83,8 @@ public class SoapToJpaMojo extends AbstractMojo {
     // for the compilation performance, one factory can not contain more than this value of iterations
     private static final String JPA_SUFFIX = "JPA";
     private static final String FIELDS_SUFFIX = "Fields";
+    // generation date in ISO 8601 standard
+    private static final String generationDate = DateFormatUtils.ISO_DATETIME_TIME_ZONE_FORMAT.format(new Date());
 
     /**
      * Perform some initial stuff for the plugin
@@ -161,6 +164,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         File file = BuildHelper.getFile(packagePath, "IFieldProvider", "");
         VelocityContext context = new VelocityContext();
         context.put("package", fieldsPackageName);
+        context.put("generationDate", generationDate);
 
         StringWriter writer = new StringWriter();
         t.merge( context, writer );
@@ -319,6 +323,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("display", new DisplayTool());
         context.put("sorter", new SortTool());
         context.put("isEmbedded", isEmbedded);
+        context.put("generationDate", generationDate);
         context.put("identField", this.fieldNameUsedAsIdentityName);
         context.put("jpaClass", mapOfInterfaces.get(jc.getCanonicalName()));
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
@@ -341,6 +346,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("package", factoryPackageName);
         context.put("interfaces", mapFieldFiles);
         context.put("fieldsPackage", this.fieldsPackageName);
+        context.put("generationDate", generationDate);
 
         StringWriter writer = new StringWriter();
         factoryTemplate.merge( context, writer );
@@ -417,6 +423,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("fieldMap", mapOfFields);
         context.put("innerClasses", lstInnerClasses);
         context.put("display", new DisplayTool());
+        context.put("generationDate", generationDate);
         context.put("identityFieldName", this.fieldNameUsedAsIdentityName);
         context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
 
