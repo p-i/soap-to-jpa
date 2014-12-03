@@ -18,7 +18,7 @@ public static class ${className}Fields implements IFieldProvider {
 #else
 package ${package};
 
-import com.taleo.stubs.factory.JPAEntitiesFactory;
+import ${factoryPackageName}.JPAEntitiesFactory;
 import org.apache.commons.lang.reflect.MethodUtils;
 
 import java.lang.reflect.InvocationTargetException;

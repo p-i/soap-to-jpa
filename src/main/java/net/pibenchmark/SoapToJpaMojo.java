@@ -314,6 +314,7 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         VelocityContext context = new VelocityContext();
         context.put("package", this.fieldsPackageName);
+        context.put("factoryPackageName", this.factoryPackageName);
         context.put("className", jc.getName());
         context.put("mapOfFields", mapOfFields);
         context.put("primitiveFields", setOfPrimitives);
