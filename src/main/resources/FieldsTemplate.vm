@@ -24,6 +24,7 @@ import org.apache.commons.lang.reflect.MethodUtils;
 import java.lang.reflect.InvocationTargetException;
 import java.util.stream.Stream;
 import javax.annotation.Generated;
+import java.util.Map;
 
 /**
  * GENERATED JPA CONTENT. DO NOT MODIFY!
@@ -36,6 +37,7 @@ public class ${className}Fields implements ${package}.IFieldProvider {
 
     private Object soapObject;
     private Object jpaObject;
+    private final Map<String, Class<? extends ${package}.IFieldProvider>> mapNestedFields;
 #*
 
 
@@ -78,6 +80,19 @@ public class ${className}Fields implements ${package}.IFieldProvider {
 #end
 #end
     };
+
+    /**
+     * Constructor.
+     * Initiate map of inner classes
+     */
+    public ${className}Fields() {
+        mapNestedFields = com.google.common.collect.ImmutableMap
+            .<String, Class<? extends ${package}.IFieldProvider>>builder()
+#foreach( $field in $innerClassFields.keySet() )
+            .put("${field}", #if($innerClassFields.contains($field)) ${innerClassFields.get($field)}Fields.class #else ${field}Fields.class #end)
+#end
+            .build();
+    }
 
     /**
      * {@inheritDoc}

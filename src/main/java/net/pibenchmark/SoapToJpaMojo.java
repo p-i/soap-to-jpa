@@ -5,6 +5,7 @@ import com.google.common.collect.*;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
+import jdk.nashorn.internal.ir.annotations.Immutable;
 import net.pibenchmark.pojo.FieldType;
 import net.pibenchmark.pojo.InnerClass;
 import org.apache.commons.lang.StringUtils;
@@ -77,6 +78,9 @@ public class SoapToJpaMojo extends AbstractMojo {
     @Parameter( defaultValue = "java.lang.Long", readonly = true )
     private String fieldNameUsedAsIdentityType;
 
+    // The set of postfixes. If a class has this part in its name, then this file will be ignored
+    private final Set<String> setForbiddenNames = ImmutableSet.of("ObjectFactory", "Factory", "Impl");
+
     private JavaProjectBuilder builder;
     private File jpaOutputDirectory;
 
@@ -121,8 +125,8 @@ public class SoapToJpaMojo extends AbstractMojo {
             // collect all interfaces to map "full interface name" <==> "fully qualified JPA name"
             final Map<String, String> mapInterfaces = builder.getClasses()
                     .stream()
-                    .filter( (jc) -> jc.isInterface() )
-                    .filter( (jc) -> !jc.getName().endsWith("Factory") && !jc.getName().endsWith("Impl") )
+                   /* .filter( (jc) -> jc.isInterface() ) */
+                    .filter((jc) -> !jc.getName().endsWith("Factory") && !jc.getName().endsWith("Impl") && !jc.getName().endsWith("ObjectFactory"))
                     .collect(Collectors.toMap(
                             JavaClass::getCanonicalName,
                             jc -> BuildHelper.getQualifiedName(jc).replace("$", "JPA.") + "JPA"));
@@ -217,7 +221,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         int cntSkippedFiles = 0;
 
         for (JavaClass jc : builder.getClasses()) {
-            if (jc.isInterface() && !jc.isInner()) {
+            if (/*jc.isInterface() &&*/ !jc.isInner() && !jc.getName().endsWith("ObjectFactory") && !jc.getName().endsWith("Impl") ) {
 
                 final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), this.fieldsPackageName);
 
@@ -299,7 +303,7 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         if (!nestedClasses.isEmpty()) {
             for (JavaClass nestedClass : nestedClasses) {
-                if (nestedClass.isInterface() && !nestedClass.getName().endsWith("Factory")) {
+                if (!nestedClass.getName().endsWith("Factory")) {
                     // render inner class and get the code
                     final String[] innerClass = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapAccumulator);
                     mapInnerClassFirstField.put(nestedClass.getName(), innerClass[0]);
@@ -372,7 +376,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         int cntSkippedFiles = 0;
 
         for (JavaClass jc : builder.getClasses()) {
-            if (jc.isInterface() && !jc.isInner()) {
+            if (/*jc.isInterface() && */!jc.isInner()) {
 
                 final String packageName = jc.getPackageName();
                 final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
@@ -456,7 +460,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         if (!nestedClasses.isEmpty()) {
             final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
             for (JavaClass nestedClass : nestedClasses) {
-                if (nestedClass.isInterface() && !nestedClass.getName().endsWith("Factory")) {
+                if (/*nestedClass.isInterface() &&*/ !nestedClass.getName().endsWith("Factory")) {
                     // render inner class and get the code
                     final String codeOfInnerClassBody = this.getCodeOfClassBody(true, t, mapInterfaces, mapOfConstructors, nestedClass, mostUpperClass);
                     listBuilder.add(new InnerClass(nestedClass.getName(), codeOfInnerClassBody));
