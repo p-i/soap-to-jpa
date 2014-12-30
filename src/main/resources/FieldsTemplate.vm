@@ -48,38 +48,35 @@ public class ${className}Fields implements ${package}.IFieldProvider {
 #end
 
     /**
-     * Array of only complex fields in the current class
+     * Array of all the fields in the current class
      */
-    public static java.lang.String[] ALL = {
+    public static java.util.List<String> ALL = com.google.common.collect.ImmutableList.<String>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
-        ${field}#if($foreach.hasNext), #end
-
+        .add(${field})
 #end
-    };
+    .build();
 
     /**
      * Array of only primitive fields in the current class
      */
-    public static java.lang.String[] SIMPLE_FIELDS = {
+    public static java.util.List<String> SIMPLE_FIELDS = com.google.common.collect.ImmutableList.<String>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
 #if( $primitiveFields.contains($mapOfFields.get($field)) )
-        ${field}#if($foreach.hasNext), #end
-
+        .add(${field})
 #end
 #end
-    };
+    .build();
 
     /**
      * Array of only complex fields in the current class
      */
-    public static java.lang.String[] COMPLEX_FIELDS = {
+    public static java.util.List<String> COMPLEX_FIELDS = com.google.common.collect.ImmutableList.<String>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
 #if( !$primitiveFields.contains($mapOfFields.get($field)) )
-        ${field}#if($foreach.hasNext), #end
-
+        .add(${field})
 #end
 #end
-    };
+    .build();
 
     /**
      * Constructor.
@@ -88,8 +85,11 @@ public class ${className}Fields implements ${package}.IFieldProvider {
     public ${className}Fields() {
         mapNestedFields = com.google.common.collect.ImmutableMap
             .<String, Class<? extends ${package}.IFieldProvider>>builder()
-#foreach( $field in $innerClassFields.keySet() )
-            .put("${field}", #if($innerClassFields.contains($field)) ${innerClassFields.get($field)}Fields.class #else ${field}Fields.class #end)
+#foreach( $field in $sorter.sort($mapOfFields.keySet()) )
+#set($currentField = ${display.capitalize($mapOfFields.get($field))})
+#if( !$primitiveFields.contains($mapOfFields.get($field)) && !$mapOfFieldTypes.get($mapOfFields.get($field)).isArray() )
+            .put("${currentField}", ${mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeSimpleName()}Fields.class)
+#end
 #end
             .build();
     }
@@ -99,7 +99,7 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      *
      */
     @Override
-    public String[] getAllFileds() {
+    public java.util.List<String> getAllFileds() {
         return this.ALL;
     }
 
@@ -108,7 +108,7 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      *
      */
     @Override
-    public String[] getPrimitiveFields() {
+    public java.util.List<String> getPrimitiveFields() {
         return this.SIMPLE_FIELDS;
     }
 
@@ -117,7 +117,7 @@ public class ${className}Fields implements ${package}.IFieldProvider {
      *
      */
     @Override
-    public String[] getComplexFields() {
+    public java.util.List<String> getComplexFields() {
         return this.COMPLEX_FIELDS;
     }
 
@@ -176,6 +176,25 @@ public class ${className}Fields implements ${package}.IFieldProvider {
     public Object build() {
         return this.jpaObject;
     }
+
+    /**
+     * Collects the list of all the nested fields
+     *
+     * @return
+     */
+    @Override
+    public IFieldProvider getInstanceOfSubclass(String nestedClassName) {
+        final Class<? extends IFieldProvider> aClass = this.mapNestedFields.get(nestedClassName);
+        if (null == aClass) {
+            throw new RuntimeException("The class with name " + nestedClassName + " was not found in the ${className} class!");
+        }
+        try {
+            return aClass.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     /**
      * {@inheritDoc}

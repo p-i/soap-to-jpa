@@ -20,18 +20,20 @@ public class FieldType {
     public static final byte INNER_CLASS = 6;
 
     private final String typeName;
-    private final String originalTypeName;
+    private final String originalTypeName; // FQN
+    private final String originalTypeSimpleName; // simple name
     private final byte typeKind;
 
     // if original type does not match target type
     private boolean isShouldBeCasted;
     private CastType castType;
 
-    public FieldType(byte b, String fullTypeName, String originalTypeName) {
+    public FieldType(byte b, String fullTypeName, String originalTypeName, String originalTypeSimpleName) {
         this.typeKind = b;
         this.typeName = fullTypeName;
         this.originalTypeName = originalTypeName;
         this.isShouldBeCasted = false;
+        this.originalTypeSimpleName = originalTypeSimpleName;
     }
 
     public String getTypeName() {
@@ -45,6 +47,8 @@ public class FieldType {
     public String getOriginalTypeName() {
         return originalTypeName;
     }
+
+    public String getOriginalTypeSimpleName() { return originalTypeSimpleName; }
 
     public void setShouldBeCasted(boolean isShouldBeCasted) {
         this.isShouldBeCasted = isShouldBeCasted;
@@ -90,6 +94,9 @@ public class FieldType {
     }
     public boolean isArrayOfInnerClasses() {
         return this.typeKind == ARRAY_OF_INNER_CLASSES;
+    }
+    public boolean isArray() {
+        return (this.typeKind == ARRAY_OF_PRIMITIVES || this.typeKind == ARRAY_OF_COMPLEX_TYPES || this.typeKind == ARRAY_OF_INNER_CLASSES);
     }
     public boolean isCollection() {
         return this.typeKind == COLLECTION;

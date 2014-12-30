@@ -332,6 +332,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("identField", this.fieldNameUsedAsIdentityName);
         context.put("jpaClass", mapOfInterfaces.get(jc.getCanonicalName()));
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
+        context.put("mapOfFieldTypes", mapOfFieldTypes);
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );

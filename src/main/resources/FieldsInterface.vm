@@ -25,21 +25,28 @@ public interface IFieldProvider {
     *
     * @return array of all the fields
     */
-    String[] getAllFileds();
+    java.util.List<String> getAllFileds();
 
     /**
     * Provides an array of only fields with primitive types
     *
     * @return
     */
-    String[] getPrimitiveFields();
+    java.util.List<String> getPrimitiveFields();
 
     /**
      * Provides an array of only fields with complex type
      *
      * @return
      */
-    String[] getComplexFields();
+    java.util.List<String> getComplexFields();
+
+    /**
+     * Collects the list of all the nested fields
+     *
+     * @return
+     */
+    IFieldProvider getInstanceOfSubclass(String nestedClassName);
 
     /**
      * Provides the array of all the pathes, that
