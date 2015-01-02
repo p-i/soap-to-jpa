@@ -63,6 +63,11 @@ public interface IFieldProvider {
     String getProjectedClassName();
 
     /**
+     * Returns the class Full name (with package)
+     */
+    String getProjectedFullClassName();
+
+    /**
      * Initiates JPA class and populates it with a data from SOAP object.
      *
      * @param soapStub - SOAP stub. Expected that it should contain only simple data
@@ -79,6 +84,17 @@ public interface IFieldProvider {
      * Build ready JPA object populated with data
      */
     Object build();
+
+    /**
+     * Checks whether current object equals to antoher.
+     * It checks not the classes itself, but underlying stubs instead
+     */
+    boolean equalsTo(IFieldProvider another);
+
+    /**
+     * Returns TRUE in case if underlying stub class is inner
+     */
+    boolean isInner();
 
     /**
      * Interface for lambda, used to make actual network call for an object

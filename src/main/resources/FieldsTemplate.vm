@@ -80,18 +80,33 @@ public class ${className}Fields implements ${package}.IFieldProvider {
 
     /**
      * Constructor.
-     * Initiate map of inner classes
+     * Initiate map of inner classes ${innerClassNames}
      */
     public ${className}Fields() {
         mapNestedFields = com.google.common.collect.ImmutableMap
             .<String, Class<? extends ${package}.IFieldProvider>>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
 #set($currentField = ${display.capitalize($mapOfFields.get($field))})
-#if( !$primitiveFields.contains($mapOfFields.get($field)) && !$mapOfFieldTypes.get($mapOfFields.get($field)).isArray() )
-            .put("${currentField}", ${mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeSimpleName()}Fields.class)
+#set($isNotPrimitive = !$primitiveFields.contains($mapOfFields.get($field)) && !$mapOfFieldTypes.get($mapOfFields.get($field)).isArray() )
+#set($isInnerClass = $innerClassNames.contains($currentField))
+#if($isNotPrimitive)
+#if($isInnerClass)
+                .put("${currentField}", ${mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeSimpleName()}Fields.class)
+#else
+                .put("${currentField}", ${package}.${mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeSimpleName()}Fields.class)
+#end
 #end
 #end
             .build();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public boolean isInner() {
+        return ${isInner};
     }
 
     /**
@@ -128,6 +143,15 @@ public class ${className}Fields implements ${package}.IFieldProvider {
     @Override
     public String getProjectedClassName() {
         return "${className}";
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public String getProjectedFullClassName() {
+        return "${soapStubClass}";
     }
 
     /**
@@ -214,6 +238,18 @@ public class ${className}Fields implements ${package}.IFieldProvider {
 #end
 #end
         );
+    }
+
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public boolean equalsTo(IFieldProvider o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        return this.getProjectedFullClassName().equals(o.getProjectedFullClassName());
     }
 #*
 

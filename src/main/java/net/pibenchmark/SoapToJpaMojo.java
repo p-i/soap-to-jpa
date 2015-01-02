@@ -298,6 +298,8 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         final List<JavaClass> nestedClasses = jc.getNestedClasses();
         final ImmutableList.Builder<InnerClass> lstInnerClassesBuilder = ImmutableList.builder();
+        final ImmutableSet.Builder<String> setInnerClassNamesBuilder = ImmutableSet.builder();
+
         // map "inner class name" <==> "its first (obviously, only one) field name"
         final ImmutableMap.Builder<String, String> mapInnerClassFirstField = ImmutableMap.builder();
 
@@ -308,6 +310,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                     final String[] innerClass = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapAccumulator);
                     mapInnerClassFirstField.put(nestedClass.getName(), innerClass[0]);
                     lstInnerClassesBuilder.add(new InnerClass(nestedClass.getName(), innerClass[1] ));
+                    setInnerClassNamesBuilder.add(nestedClass.getName());
                 }
             }
         }
@@ -320,10 +323,12 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("package", this.fieldsPackageName);
         context.put("factoryPackageName", this.factoryPackageName);
         context.put("className", jc.getName());
+        context.put("isInner", jc.isInner());
         context.put("mapOfFields", mapOfFields);
         context.put("primitiveFields", setOfPrimitives);
         context.put("fieldsCount", mapOfFields.size());
         context.put("innerClasses", lstInnerClassesBuilder.build());
+        context.put("innerClassNames", setInnerClassNamesBuilder.build());
         context.put("innerClassFields", mapInnerClassFirstField.build());
         context.put("display", new DisplayTool());
         context.put("sorter", new SortTool());
