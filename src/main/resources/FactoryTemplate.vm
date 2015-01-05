@@ -17,7 +17,7 @@ public class JPAEntitiesFactory {
     private static final Map<String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapFactoryInstances
                                     = ImmutableMap.<String, Class<? extends ${fieldsPackage}.IFieldProvider>>builder()
 #foreach( $interface in $interfaces.keySet() )
-        .put("${interface}", ${fieldsPackage}.${interfaces.get($interface)}.class)
+        .put("${interface}", ${interfaces.get($interface)}.class)
 #end
         .build();
 

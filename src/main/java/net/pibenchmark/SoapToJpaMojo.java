@@ -40,6 +40,7 @@ import java.io.StringWriter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Mojo( name = "soap-to-jpa")
 public class SoapToJpaMojo extends AbstractMojo {
@@ -134,8 +135,8 @@ public class SoapToJpaMojo extends AbstractMojo {
             // map "JPA class name" <==> "Set<full interface name>"
             final Map<String, Set<String>> mapOfConstructors = this.buildMapOfConstructors(mapInterfaces);
 
-            // Map "soap interface" <==> "Fields file"
-            final Map<String, String> mapOfFieldFiles = Maps.newHashMap();
+            // Map "soap interface/class" <==> "Fields file"
+            final Map<String, String> mapOfFieldFiles = this.buildMapOfFieldProviders();
 
             // write all the JPA classes
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
@@ -153,6 +154,20 @@ public class SoapToJpaMojo extends AbstractMojo {
             throw new MojoFailureException(e.getMessage());
         }
 
+    }
+
+    /**
+     * Collect map "full name if Soap stub" <=> "full name of according Fields provider"
+     *
+     * @return map
+     */
+    private Map<String, String> buildMapOfFieldProviders() {
+        return builder.getClasses()
+                .parallelStream()
+                .filter((jc) -> !setForbiddenNames.stream().anyMatch((forbiddenName) -> jc.getName().endsWith(forbiddenName)))
+                .collect(
+                        Collectors.toMap(JavaClass::getCanonicalName,
+                        jc -> jc.getFullyQualifiedName().replace("$", "Fields.") + "Fields"));
     }
 
     /**
@@ -215,22 +230,23 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @throws IOException
      * @throws MojoFailureException
      */
-    private void generateFieldConstants(Template fieldsTemplate, Map<String, String> mapOfInterfaces, Map<String, String> mapAccumulator) throws IOException, MojoFailureException {
+    private void generateFieldConstants(Template fieldsTemplate, Map<String, String> mapOfInterfaces, Map<String, String> mapOfFieldFiles) throws IOException, MojoFailureException {
         getLog().info("Generation of the Field objects...");
         int cntCreatedFiles = 0;
         int cntSkippedFiles = 0;
 
         for (JavaClass jc : builder.getClasses()) {
-            if (/*jc.isInterface() &&*/ !jc.isInner() && !jc.getName().endsWith("ObjectFactory") && !jc.getName().endsWith("Impl") ) {
+            final boolean classNameShouldBeSkipped = setForbiddenNames.stream().anyMatch((forbiddenName) -> jc.getName().endsWith(forbiddenName));
+            if (!jc.isInner() && !classNameShouldBeSkipped) {
 
-                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), this.fieldsPackageName);
+                final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), jc.getPackageName());
 
                 File file = BuildHelper.getFile(packagePath, jc.getName(), FIELDS_SUFFIX);
 
                 if (!file.exists()) {
                     file.createNewFile();
 
-                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces, mapAccumulator)[1];
+                    final String classBodyCode = this.getCodeOfInterfaceBody(false, fieldsTemplate, jc, mapOfInterfaces, mapOfFieldFiles)[1];
                     BuildHelper.writeContentToFile(classBodyCode, file);
 
                     cntCreatedFiles++;
@@ -254,7 +270,11 @@ public class SoapToJpaMojo extends AbstractMojo {
      *  [0] - the first field from inner class
      *  [1] - the class code ready to be saved to a file
      */
-    private String[] getCodeOfInterfaceBody(final boolean isEmbedded, final Template fieldsTemplate, final JavaClass jc, Map<String, String> mapOfInterfaces, Map<String, String> mapAccumulator) {
+    private String[] getCodeOfInterfaceBody(final boolean isEmbedded,
+                                            final Template fieldsTemplate,
+                                            final JavaClass jc,
+                                            Map<String, String> mapOfInterfaces,
+                                            Map<String, String> mapOfFieldFiles) {
 
         // map "field name" <==> "field type"
         final Map<String, FieldType> mapOfFieldTypes = BuildHelper.buildMapOfFields(jc,
@@ -307,7 +327,7 @@ public class SoapToJpaMojo extends AbstractMojo {
             for (JavaClass nestedClass : nestedClasses) {
                 if (!nestedClass.getName().endsWith("Factory")) {
                     // render inner class and get the code
-                    final String[] innerClass = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapAccumulator);
+                    final String[] innerClass = this.getCodeOfInterfaceBody(true, fieldsTemplate, nestedClass, mapOfInterfaces, mapOfFieldFiles);
                     mapInnerClassFirstField.put(nestedClass.getName(), innerClass[0]);
                     lstInnerClassesBuilder.add(new InnerClass(nestedClass.getName(), innerClass[1] ));
                     setInnerClassNamesBuilder.add(nestedClass.getName());
@@ -315,12 +335,9 @@ public class SoapToJpaMojo extends AbstractMojo {
             }
         }
 
-        // collect the interface full name and according Field class (without package)
-        mapAccumulator.put(jc.getCanonicalName(),
-                jc.getFullyQualifiedName().replace(jc.getPackageName() + ".", "").replace("$", "Fields.") + "Fields");
-
         VelocityContext context = new VelocityContext();
-        context.put("package", this.fieldsPackageName);
+        context.put("package", jc.getPackageName());
+        context.put("fieldsPackage", this.fieldsPackageName);
         context.put("factoryPackageName", this.factoryPackageName);
         context.put("className", jc.getName());
         context.put("isInner", jc.isInner());
@@ -338,6 +355,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("jpaClass", mapOfInterfaces.get(jc.getCanonicalName()));
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
         context.put("mapOfFieldTypes", mapOfFieldTypes);
+        context.put("mapOfFieldFiles", mapOfFieldFiles);
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );
