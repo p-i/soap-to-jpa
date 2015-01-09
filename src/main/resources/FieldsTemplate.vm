@@ -113,6 +113,15 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     /**
      * {@inheritDoc}
      *
+    */
+    @Override
+    public boolean hasIdentField() {
+        return ${isContainingIdentField};
+    }
+
+    /**
+     * {@inheritDoc}
+     *
      */
     @Override
     public java.util.List<java.lang.String> getAllFileds() {

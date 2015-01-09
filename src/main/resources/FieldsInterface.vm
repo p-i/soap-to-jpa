@@ -97,6 +97,12 @@ public interface IFieldProvider {
     boolean isInner();
 
     /**
+     * Returns TRUE in case if underlying stub class contains ident field (default name is "Id",
+     * but user can define another name for identification)
+     */
+    boolean hasIdentField();
+
+    /**
      * Interface for lambda, used to make actual network call for an object
      */
     @FunctionalInterface

@@ -3,11 +3,13 @@ package net.pibenchmark;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.thoughtworks.qdox.model.JavaClass;
+import com.thoughtworks.qdox.model.JavaField;
 import com.thoughtworks.qdox.model.JavaMethod;
 import net.pibenchmark.pojo.FieldType;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 
+import javax.xml.bind.annotation.XmlElement;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -45,7 +47,9 @@ public class BuildHelper {
 
     /**
      * Builds map "field" <==> "type". We take fields only by getters,
-     * because XMLBeans generates other methods, for example xset...()
+     * because XMLBeans generates other methods, for example xset...().
+     * Despite the fact that CXF generates classes with fields and getters,
+     * we can not rely on the fields, because a Axis generates only interfaces.
      *
      * @param jc
      * @param mapInterfaces
@@ -64,6 +68,16 @@ public class BuildHelper {
                 final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, log);
                 if (!RESERVED_TYPES.contains(returnType.getTypeName()) && returnType.isDefined()) {
                     final String fieldName = extractFieldName(method.getName());
+
+                    // check: if a field exists, then it must be annotated with @XmlElement
+                    boolean shouldBeSkipped = false;
+                    final JavaField fieldByName = jc.getFieldByName(fieldName);
+                    if (null != fieldByName) {
+                        shouldBeSkipped = fieldByName.getAnnotations()
+                                .stream()
+                                .noneMatch((annotation) -> annotation.getType().isA(XmlElement.class.getCanonicalName()));
+                    }
+
                     if (fieldName.equals(idFieldName)) {
                         final boolean isCastingNeeded = !returnType.getOriginalTypeName().equals(idFieldType);
                         if (isCastingNeeded) {
@@ -71,7 +85,8 @@ public class BuildHelper {
                             returnType.cast(returnType.getOriginalTypeName(), idFieldType);
                         }
                     }
-                    map.put(fieldName, returnType);
+                    if (!shouldBeSkipped) map.put(fieldName, returnType);
+
                 }
             }
         }

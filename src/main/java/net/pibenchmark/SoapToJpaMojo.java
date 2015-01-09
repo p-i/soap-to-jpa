@@ -356,6 +356,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
         context.put("mapOfFieldTypes", mapOfFieldTypes);
         context.put("mapOfFieldFiles", mapOfFieldFiles);
+        context.put("isContainingIdentField", setOfPrimitives.contains(this.fieldNameUsedAsIdentityName));
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );
