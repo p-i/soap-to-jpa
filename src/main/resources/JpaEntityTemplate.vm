@@ -29,13 +29,17 @@ package $package;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.CascadeType;
 import javax.persistence.Embeddable;
 import javax.persistence.Embedded;
+import javax.persistence.Column;
+import javax.persistence.JoinColumn;
 import javax.annotation.Generated;
 import java.io.Serializable;
-
 
 /**
  * GENERATED JPA FACTORY CONTENT. DO NOT MODIFY!
@@ -50,7 +54,7 @@ public class ${className}JPA implements Serializable {
 
 #if(!${isEmbedded})
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.TABLE)
     private ${identityFieldType} _${identityFieldName};
 
     public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
@@ -64,8 +68,18 @@ public class ${className}JPA implements Serializable {
 #foreach( $field in $fieldMap.keySet() )
 #if(${fieldMap.get(${field}).isArrayOfComplextType()})
     @OneToMany
+    @JoinColumn(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}")
 #elseif(${fieldMap.get(${field}).isInnerClass()})
     @Embedded
+    @Column(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}")
+#elseif(${fieldMap.get($field).isComplexType()})
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}")
+#elseif(${isEmbedded} && ${fieldMap.get($field).isCollection()})
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}")
+#elseif(${field} != ${identityFieldName})
+    @Column(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}")
 #end
 #if(${field} != ${identityFieldName})
     private ${fieldMap.get($field).render()}  _${field};
@@ -86,6 +100,17 @@ public class ${className}JPA implements Serializable {
      * @param stub - instance of typeName <code>${constructor}</code>
      */
     public ${className}JPA(${constructor} stub) {
+        this(stub, (stubProvider, id) -> null );
+    }
+
+    /**
+     * Constructor, that restores an instance of ${className}JPA
+     * from SOAP stub $constructor
+     *
+     * @param stub - instance of typeName <code>${constructor}</code>
+     * @param lmbLoadObject - lambda-function that loads a given object by the ID
+     */
+    public ${className}JPA(${constructor} stub, ${fieldsPackage}.IFieldProvider.IFunctionLoadInnerClasses fnLoadObject) {
 
 #foreach( $field in $fieldMap.keySet() )
 #set($currentField = ${fieldMap.get($field)})
@@ -121,9 +146,22 @@ public class ${className}JPA implements Serializable {
                 this._${field}.add( obj);
             }
         }
+#elseif(${isEmbedded} && ${fieldMap.get($field).isComplexType()} && ${fieldMap.get($field).hasIdentField()})#*
+
+          For the inner class: try to get object using lambda. Print this code
+          only if inner object has Ident (ID or Number) field.
+
+       *#
+        if (null != stub.get${capitalizedFieldName}()) {
+            if(null != stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}()) {
+                #parse("ParsedIdentField.vm")
+                this._${field} = (${currentField.getTypeName()}) fnLoadObject.load(${currentField.getTypeName()}.class, stubIdent);
+            }
+            if (null == this._${field}) this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}());
+        }
 #elseif( ${currentField.isComplexType()} || ${currentField.isInnerClass()} )
         if (null != stub.get${capitalizedFieldName}()) {
-            this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}());
+            this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}(), fnLoadObject);
         }
 #end
 #end

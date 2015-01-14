@@ -75,10 +75,11 @@ public interface IFieldProvider {
     IFieldProvider initiateJPA(Object soapStub);
 
     /**
-     * Calls lambda for each subcluss of the JPA object that was created
-     * with {@code initiateJPA()} method
+     * Provides the lambda function for the creation action.
+     * Usually we need might want to extract existing data before
+     * creating new one, to verify that
      */
-    IFieldProvider forEachSubclass(IFunctionLoadInnerClasses lambda);
+    IFieldProvider onCreate(IFunctionLoadInnerClasses lambda);
 
     /**
      * Build ready JPA object populated with data
@@ -103,18 +104,17 @@ public interface IFieldProvider {
     boolean hasIdentField();
 
     /**
-     * Interface for lambda, used to make actual network call for an object
+     * Interface for lambda, used to load existing object from a database
      */
     @FunctionalInterface
     public interface IFunctionLoadInnerClasses {
 
         /**
-         * Prepares remote call to remote server and returns an JPA object
-         * populated with simple data
+         * Return object from a DB or null in case if this object doesn't exist
          *
-         * @params stubProvider - field provider for the object we are goind to request
-         * @params id - identity for this object
+         * @params JPA class - class of JPA to be selected
+         * @params id - identity with type ${identityFieldType} for this object
          */
-        Object load(IFieldProvider stubProvider, long id);
+        Object load(Class<?> classJpa, ${identityFieldType} primaryKey);
     }
 }

@@ -65,7 +65,7 @@ public class BuildHelper {
         for (JavaMethod method : jc.getMethods()) {
             isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());
             if(isGetter) {
-                final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, log);
+                final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, idFieldName, log);
                 if (!RESERVED_TYPES.contains(returnType.getTypeName()) && returnType.isDefined()) {
                     final String fieldName = extractFieldName(method.getName());
 
@@ -102,18 +102,23 @@ public class BuildHelper {
      * @param log
      * @return type as string
      */
-    static FieldType getReturnType(JavaClass jc, JavaMethod method, Map<String, String> mapInterfaces, Log log) {
+    static FieldType getReturnType(JavaClass jc, JavaMethod method, Map<String, String> mapInterfaces, String idFieldName, Log log) {
         final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
         final String strSimpleType = method.getReturns().getName();
 
         final boolean isTypeInnerClass = strType.length() > jc.getCanonicalName().length()
                                           && strType.startsWith(jc.getCanonicalName() + ".");
 
+        final boolean hasIdentField = method.getReturns()
+                .getFields()
+                .parallelStream()
+                .anyMatch( (JavaField field) -> field.getName().equalsIgnoreCase(idFieldName) );
+
         if (PRIMITIVES.contains(strType)) {
-            return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType);
+            return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, hasIdentField);
         }
         else if (strType.equals(List.class.getTypeName()) || strType.equals(Set.class.getTypeName())) {
-            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType, strSimpleType);
+            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType, strSimpleType, hasIdentField);
         }
         else if (strType.endsWith("[]")) {
             final String strTypeOfArray = strType.substring(0, strType.length()-2);
@@ -121,21 +126,23 @@ public class BuildHelper {
 
             if (PRIMITIVES.contains(strTypeOfArray)) {
                 // array of primitives
-                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray, strTypeOfArray);
+                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray, strTypeOfArray, hasIdentField);
             }
             else if (isArrayTypeIsSubclass) {
                 // array of inner class objects
                 return new FieldType(FieldType.ARRAY_OF_INNER_CLASSES,
                         method.getReturns().getName() + "JPA",
                         strTypeOfArray,
-                        strTypeOfArray);
+                        strTypeOfArray,
+                        hasIdentField);
             }
             else {
                 // array of complex types
                 return new FieldType(FieldType.ARRAY_OF_COMPLEX_TYPES,
                         mapInterfaces.get(strTypeOfArray),
                         strTypeOfArray,
-                        strTypeOfArray);
+                        strTypeOfArray,
+                        hasIdentField);
             }
         }
         else if (isTypeInnerClass) {
@@ -143,10 +150,10 @@ public class BuildHelper {
                 log.warn("Can not transfer type " + strType + " to JPA inner class. " +
                         "Probably, this is a class instead of an interface. This field will be omitted.");
             }
-            return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType, strSimpleType);
+            return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField);
         }
         else {
-            return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType);
+            return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField);
         }
     }
 

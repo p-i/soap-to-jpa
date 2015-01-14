@@ -38,6 +38,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     private Object soapObject;
     private Object jpaObject;
     private final Map<java.lang.String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapNestedFields;
+    private IFunctionLoadInnerClasses fnOnCreate;
 #*
 
 
@@ -170,8 +171,13 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      */
     @Override
     public ${className}Fields initiateJPA(final Object soapStub) {
-        this.soapObject = soapObject;
-        this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub);
+        this.soapObject = soapStub;
+        if (null == this.fnOnCreate) {
+            this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub);
+        }
+        else {
+            this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub, this.fnOnCreate);
+        }
         return this;
     }
 
@@ -180,25 +186,9 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      *
      */
     @Override
-    public ${className}Fields forEachSubclass(final IFunctionLoadInnerClasses lambda) {
-        Stream.of(this.getComplexFields())
-            .parallel()
-            .forEach((fieldName) -> {
-                try {
-
-                    // get inner object by calling getter from SOAP stub
-                    final Object subClassObject = MethodUtils.invokeMethod(this.soapObject, "get" + fieldName, new Object[0]);
-                    // load JPA using labmda populated with data
-                    final ${fieldsPackage}.IFieldProvider fieldProvider = JPAEntitiesFactory.getInstance().create(subClassObject);
-                    Object objJPA = lambda.load(fieldProvider, 1L);
-                    // set new JPA sub-object to current JPA calling setter
-                    MethodUtils.invokeMethod(this.jpaObject, "set" + fieldName, new Object[]{ objJPA });
-
-                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
-                    e.printStackTrace();
-                }
-            });
-        return this;
+    public ${className}Fields onCreate(final IFunctionLoadInnerClasses lambda) {
+         this.fnOnCreate = lambda;
+         return this;
     }
 
 

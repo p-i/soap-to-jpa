@@ -4,6 +4,7 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.*;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
+import com.thoughtworks.qdox.model.JavaField;
 import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import net.pibenchmark.pojo.FieldType;
@@ -184,6 +185,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         VelocityContext context = new VelocityContext();
         context.put("package", fieldsPackageName);
         context.put("generationDate", generationDate);
+        context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
 
         StringWriter writer = new StringWriter();
         t.merge( context, writer );
@@ -444,6 +446,14 @@ public class SoapToJpaMojo extends AbstractMojo {
                 this.fieldNameUsedAsIdentityName,
                 this.fieldNameUsedAsIdentityType);
 
+        // map "field in CamelCase" <==> "field on LOWER_CASE"
+        final Map<String, String> mapOfCamelFields = mapOfFields.keySet()
+                .parallelStream()
+                .sorted()
+                .collect(Collectors.toMap(
+                        Function.<String>identity(),
+                        (field) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, field) ));
+
         final List<InnerClass> lstInnerClasses = this.getListOfInnerClasses(t, mapInterfaces, mapOfConstructors, jc, mostUpperClass);
 
         VelocityContext context = new VelocityContext();
@@ -451,11 +461,13 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("package", jc.getPackageName());
         context.put("className", jc.getName());
         context.put("fieldMap", mapOfFields);
+        context.put("fieldCamelMap", mapOfCamelFields);
         context.put("innerClasses", lstInnerClasses);
         context.put("display", new DisplayTool());
         context.put("generationDate", generationDate);
         context.put("identityFieldName", this.fieldNameUsedAsIdentityName);
         context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
+        context.put("fieldsPackage", this.fieldsPackageName);
 
         if (isEmbedded) {
             final String className = jc.getFullyQualifiedName().replace("$","JPA.") + "JPA";

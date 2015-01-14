@@ -8,11 +8,17 @@
 *#
 
 #if(${currentField.getCastType()} == "STRING_TO_LONG")
-        this._${field} = java.lang.Long.parseLong(stub.get${capitalizedFieldName}());
+        if (null != stub.get${capitalizedFieldName}()) {
+            this._${field} = java.lang.Long.parseLong(stub.get${capitalizedFieldName}());
+        }
 #elseif(${currentField.getCastType()} == "STRING_TO_INT")
-        this._${field} = java.lang.Integer.parseInteger(stub.get${capitalizedFieldName}());
+        if (null != stub.get${capitalizedFieldName}()) {
+            this._${field} = java.lang.Integer.parseInteger(stub.get${capitalizedFieldName}());
+        }
 #elseif(${currentField.getCastType()} == "STRING_TO_FLOAT")
-        this._${field} = java.lang.Float.parseFloat(stub.get${capitalizedFieldName}());
+        if (null != stub.get${capitalizedFieldName}()) {
+            this._${field} = java.lang.Float.parseFloat(stub.get${capitalizedFieldName}());
+        }
 #else
 
 #end

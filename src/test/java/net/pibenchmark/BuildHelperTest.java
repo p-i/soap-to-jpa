@@ -56,7 +56,7 @@ public class BuildHelperTest {
         when( jm.getReturnType().getGenericFullyQualifiedName() ).thenReturn(String.class.getTypeName());
         when( jc.getCanonicalName() ).thenReturn("no matter");
 
-        FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), log);
+        FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), "number", log);
 
         assertEquals(String.class.getTypeName(), returnType.getTypeName());
         assertEquals(FieldType.PRIMITIVE, returnType.getTypeKind());
@@ -70,7 +70,7 @@ public class BuildHelperTest {
         when( jm.getReturns().getName() ).thenReturn(boolean.class.getSimpleName());
         when( jc.getCanonicalName() ).thenReturn("no matter");
 
-        FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), log);
+        FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), "number", log);
 
         assertEquals(boolean.class.getSimpleName(), returnType.getTypeName());
         assertEquals(FieldType.PRIMITIVE, returnType.getTypeKind());
@@ -84,7 +84,7 @@ public class BuildHelperTest {
         when( jm.getReturns().getName() ).thenReturn("byte");
         when( jc.getCanonicalName() ).thenReturn("no matter");
 
-        FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), log);
+        FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), "number", log);
 
         //then: type and origin types are presented as simple types, but without trailing []
         assertEquals("byte", returnType.getTypeName());
@@ -99,7 +99,7 @@ public class BuildHelperTest {
         when( jc.getCanonicalName() ).thenReturn("com.taleo.tee400.Requisition");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm,
-                ImmutableMap.of("com.taleo.tee400.Document", "com.taleo.jpas.DocumentJPA"), log);
+                ImmutableMap.of("com.taleo.tee400.Document", "com.taleo.jpas.DocumentJPA"), "number", log);
 
         //then: type is according JPA and without trailing []
         assertEquals("com.taleo.jpas.DocumentJPA", returnType.getTypeName());
@@ -114,7 +114,7 @@ public class BuildHelperTest {
         when( jc.getCanonicalName() ).thenReturn("com.taleo.tee400.Requisition");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm,
-                ImmutableMap.of("com.taleo.itk.ws.query.Boolean", "com.taleo.jpa.BooleanJPA"), log);
+                ImmutableMap.of("com.taleo.itk.ws.query.Boolean", "com.taleo.jpa.BooleanJPA"), "number", log);
 
         //then: type is according JPA class
         assertEquals("com.taleo.jpa.BooleanJPA", returnType.getTypeName());
