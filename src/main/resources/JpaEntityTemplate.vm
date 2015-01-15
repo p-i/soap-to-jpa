@@ -100,7 +100,8 @@ public class ${className}JPA implements Serializable {
      * @param stub - instance of typeName <code>${constructor}</code>
      */
     public ${className}JPA(${constructor} stub) {
-        this(stub, (stubProvider, id) -> null );
+        this(stub, (stubProvider, id) -> null, new java.util.HashMap<java.lang.String, java.util.Set<${identityFieldType}>>() );
+        System.out.println(" # Constructor without argument was called for ${package}.${className}");
     }
 
     /**
@@ -109,8 +110,15 @@ public class ${className}JPA implements Serializable {
      *
      * @param stub - instance of typeName <code>${constructor}</code>
      * @param lmbLoadObject - lambda-function that loads a given object by the ID
+     * @param mapAcc - map-accumulator "class name" <==> "set of ID's" that collects all the objects
+     *                 with their ID that has all the fields empty except Ident field.
+     *                 In the future we can reload data for these objects.
      */
-    public ${className}JPA(${constructor} stub, ${fieldsPackage}.IFieldProvider.IFunctionLoadInnerClasses fnLoadObject) {
+    public ${className}JPA(${constructor} stub,
+                           ${fieldsPackage}.IFieldProvider.IFunctionLoadInnerClasses fnLoadObject,
+                           java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc) {
+        // count how many fields are not null
+        int cntInitialized = 0;
 
 #foreach( $field in $fieldMap.keySet() )
 #set($currentField = ${fieldMap.get($field)})
@@ -119,51 +127,60 @@ public class ${className}JPA implements Serializable {
 ##
 ##    Instantiate every field regarding its type
 ##
+        if (null != stub.get${capitalizedFieldName}()) {
 #if( ${currentField.isShouldBeCasted()} )
     #parse("CastField.vm")
 #elseif( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
-        this._${field} = stub.get${capitalizedFieldName}();
+            this._${field} = stub.get${capitalizedFieldName}();
 #elseif( ${currentField.isArrayOfComplextType()} )#*
 
 
             Transfer an array to a collection and mark it as "One-to-many"
         *#
-        if (null != stub.get${capitalizedFieldName}()) {
             final int _${field}Size = stub.get${capitalizedFieldName}().length;
             this._${field} = com.google.common.collect.Lists.newArrayList();
             for (int i = 0; i < _${field}Size; i++) {
                 this._${field}.add( new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}()[i]) );
             }
-        }
 #elseif( ${currentField.isCollection()} )#*
 
 
             Populate the collection in a loop, creating of a new instance on every iteration
         *#
-        if(null != stub.get${capitalizedFieldName}()) {
             this._${field} = com.google.common.collect.Lists.newArrayList();
             for (Object obj : stub.get${capitalizedFieldName}()) {
                 this._${field}.add( obj);
             }
-        }
 #elseif(${isEmbedded} && ${fieldMap.get($field).isComplexType()} && ${fieldMap.get($field).hasIdentField()})#*
 
           For the inner class: try to get object using lambda. Print this code
           only if inner object has Ident (ID or Number) field.
 
        *#
-        if (null != stub.get${capitalizedFieldName}()) {
             if(null != stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}()) {
                 #parse("ParsedIdentField.vm")
                 this._${field} = (${currentField.getTypeName()}) fnLoadObject.load(${currentField.getTypeName()}.class, stubIdent);
             }
-            if (null == this._${field}) this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}());
-        }
+            if (null == this._${field}) this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}(), fnLoadObject, mapAcc);
 #elseif( ${currentField.isComplexType()} || ${currentField.isInnerClass()} )
-        if (null != stub.get${capitalizedFieldName}()) {
-            this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}(), fnLoadObject);
+            this._${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}(), fnLoadObject, mapAcc);
+#end
+            cntInitialized++;
         }
 #end
+
+#if(!${isEmbedded})
+        // it current object is empty (only _${identityFieldName} field has a value), then add it to accumulator map:
+        if (cntInitialized == 1 && null != this._${identityFieldName}) {
+            if (mapAcc.containsKey("${package}.${className}")) {
+                java.util.Set<${identityFieldType}> setExistingIds = mapAcc.get("${package}.${className}");
+                setExistingIds.add(this._${identityFieldName});
+                mapAcc.put("${package}.${className}", setExistingIds);
+            }
+            else {
+                mapAcc.put("${package}.${className}", com.google.common.collect.Sets.newHashSet(this._${identityFieldName}));
+            }
+        }
 #end
 
     } // end of constructor

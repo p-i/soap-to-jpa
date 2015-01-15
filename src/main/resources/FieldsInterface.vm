@@ -72,7 +72,16 @@ public interface IFieldProvider {
      *
      * @param soapStub - SOAP stub. Expected that it should contain only simple data
      */
-    IFieldProvider initiateJPA(Object soapStub);
+    IFieldProvider initiateJPA(Object soapStub, java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAccumulator);
+
+    /**
+     * Register a map of classes that should collect all the
+     * empty instances (that have no data except ID). In the future we can use this
+     * map to re-load empty instances and populate them with a data
+     *
+     * @param mapAccumulator - map "class name" <==> "set of IDs"
+     */
+    IFieldProvider collectEmptyInstancesTo(java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAccumulator);
 
     /**
      * Provides the lambda function for the creation action.

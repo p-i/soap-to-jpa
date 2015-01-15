@@ -39,6 +39,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     private Object jpaObject;
     private final Map<java.lang.String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapNestedFields;
     private IFunctionLoadInnerClasses fnOnCreate;
+
 #*
 
 
@@ -170,14 +171,23 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      *
      */
     @Override
-    public ${className}Fields initiateJPA(final Object soapStub) {
+    public ${className}Fields initiateJPA(final Object soapStub, java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAccumulator) {
         this.soapObject = soapStub;
         if (null == this.fnOnCreate) {
             this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub);
         }
         else {
-            this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub, this.fnOnCreate);
+            this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub, this.fnOnCreate, mapAccumulator);
         }
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public ${className}Fields collectEmptyInstancesTo(java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc) {
         return this;
     }
 

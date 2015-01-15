@@ -6,19 +6,12 @@
  @version 1
 
 *#
-
 #if(${currentField.getCastType()} == "STRING_TO_LONG")
-        if (null != stub.get${capitalizedFieldName}()) {
             this._${field} = java.lang.Long.parseLong(stub.get${capitalizedFieldName}());
-        }
 #elseif(${currentField.getCastType()} == "STRING_TO_INT")
-        if (null != stub.get${capitalizedFieldName}()) {
             this._${field} = java.lang.Integer.parseInteger(stub.get${capitalizedFieldName}());
-        }
 #elseif(${currentField.getCastType()} == "STRING_TO_FLOAT")
-        if (null != stub.get${capitalizedFieldName}()) {
             this._${field} = java.lang.Float.parseFloat(stub.get${capitalizedFieldName}());
-        }
 #else
-
+            // don't know how to parse ${currentField.getCastType()} type for field this._${field}
 #end

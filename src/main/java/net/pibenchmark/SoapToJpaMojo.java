@@ -341,6 +341,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("package", jc.getPackageName());
         context.put("fieldsPackage", this.fieldsPackageName);
         context.put("factoryPackageName", this.factoryPackageName);
+        context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
         context.put("className", jc.getName());
         context.put("isInner", jc.isInner());
         context.put("mapOfFields", mapOfFields);
