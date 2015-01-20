@@ -6,11 +6,11 @@
  @version 1
 
 *##if(${identityFieldType} == "java.lang.Long")
-final long stubIdent = java.lang.Long.parseLong(stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}());
+final long stubIdent = java.lang.Long.parseLong($stringIdent);
 #elseif(${identityFieldType} == "java.lang.Integer")
-final int stubIdent = java.lang.Integer.parseInt(stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}());
+final int stubIdent = java.lang.Integer.parseInt($stringIdent);
 #elseif(${identityFieldType} == "java.lang.Float")
-final float stubIdent = java.lang.Float.parseFloat(stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}());
+final float stubIdent = java.lang.Float.parseFloat($stringIdent);
 #else
 // don't know how to cast ${identityFieldType} (ParsedIdentField.vm)
 #end

@@ -93,7 +93,7 @@ public interface IFieldProvider {
     /**
      * Build ready JPA object populated with data
      */
-    Object build();
+    ${package}.IJpaStub build();
 
     /**
      * Checks whether current object equals to antoher.
@@ -124,6 +124,6 @@ public interface IFieldProvider {
          * @params JPA class - class of JPA to be selected
          * @params id - identity with type ${identityFieldType} for this object
          */
-        Object load(Class<?> classJpa, ${identityFieldType} primaryKey);
+        Object load(Class<? extends ${package}.IJpaStub> classJpa, ${identityFieldType} primaryKey);
     }
 }

@@ -121,6 +121,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         Template factoryTemplate = ve.getTemplate("FactoryTemplate.vm");
         Template fieldsTemplate = ve.getTemplate("FieldsTemplate.vm");
         Template fieldProviderTemplate = ve.getTemplate("FieldsInterface.vm");
+        Template jpaStubTemplate = ve.getTemplate("JPAInterface.vm");
 
         try {
 
@@ -150,6 +151,9 @@ public class SoapToJpaMojo extends AbstractMojo {
 
             // write IFieldProvider interface
             this.generateFieldProviderInterface(fieldProviderTemplate);
+
+            // write IJpaStub interface
+            this.generateJpaStubInterface(jpaStubTemplate);
         }
         catch (Exception e) {
             throw new MojoFailureException(e.getMessage());
@@ -182,6 +186,28 @@ public class SoapToJpaMojo extends AbstractMojo {
         final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), this.fieldsPackageName);
 
         File file = BuildHelper.getFile(packagePath, "IFieldProvider", "");
+        VelocityContext context = new VelocityContext();
+        context.put("package", fieldsPackageName);
+        context.put("generationDate", generationDate);
+        context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
+
+        StringWriter writer = new StringWriter();
+        t.merge( context, writer );
+
+        BuildHelper.writeContentToFile(writer.toString(), file);
+    }
+
+    /**
+     * Create Interface for all the field containers
+     *
+     * @param t
+     * @throws MojoFailureException
+     */
+    private void generateJpaStubInterface(Template t) throws MojoFailureException, IOException {
+
+        final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), this.fieldsPackageName);
+
+        File file = BuildHelper.getFile(packagePath, "IJpaStub", "");
         VelocityContext context = new VelocityContext();
         context.put("package", fieldsPackageName);
         context.put("generationDate", generationDate);
@@ -342,6 +368,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("fieldsPackage", this.fieldsPackageName);
         context.put("factoryPackageName", this.factoryPackageName);
         context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
+        context.put("identityFieldName", this.fieldNameUsedAsIdentityName);
         context.put("className", jc.getName());
         context.put("isInner", jc.isInner());
         context.put("mapOfFields", mapOfFields);
@@ -354,12 +381,11 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("sorter", new SortTool());
         context.put("isEmbedded", isEmbedded);
         context.put("generationDate", generationDate);
-        context.put("identField", this.fieldNameUsedAsIdentityName);
         context.put("jpaClass", mapOfInterfaces.get(jc.getCanonicalName()));
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
         context.put("mapOfFieldTypes", mapOfFieldTypes);
         context.put("mapOfFieldFiles", mapOfFieldFiles);
-        context.put("isContainingIdentField", setOfPrimitives.contains(this.fieldNameUsedAsIdentityName));
+        context.put("hasIdentField", setOfPrimitives.contains(this.fieldNameUsedAsIdentityName));
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );

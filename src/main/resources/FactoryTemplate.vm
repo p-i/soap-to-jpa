@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Generated;
+import java.util.Optional;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
 * GENERATED JPA CONTENT. DO NOT MODIFY!
@@ -37,29 +39,51 @@ public class JPAEntitiesFactory {
 
     /**
      * Creates Field file instance for a given SOAP stub
+     *
+     * @param soapStub SOAP stub instance
+     * @return optional of field provider
      */
-    public ${fieldsPackage}.IFieldProvider create(Object soapStub) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        if (null == soapStub) {
-            throw new IllegalArgumentException("Soap Stub is cannot be null. Factory doesn't know which JPA entity to return.");
-        }
-
+    public Optional<${fieldsPackage}.IFieldProvider> createForStub(Object soapStub) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+        checkNotNull(soapStub, "Soap stub is cannot be null. Factory doesn't know which JPA entity to return.");
         final String soapStubInterface = soapStub.getClass().getInterfaces()[0].getTypeName();
+        return this.createForClassName(soapStubInterface);
+    }
+
+    /**
+     * Creates Field provider file for a given SOAP stub class name
+     *
+     * @param soapStubInterface - FQDN for a soap
+     * @return optional of field provider
+     *
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+    public Optional<${fieldsPackage}.IFieldProvider> createForClassName(String soapStubInterface) throws InstantiationException, IllegalAccessException {
+        checkNotNull(soapStubInterface, "Soap stub class name is cannot be null. Factory doesn't know which JPA entity to return.");
 
         if (!mapFactoryInstances.containsKey(soapStubInterface)) {
-            throw new RuntimeException("Fields realisation for the " + soapStub
-                + " (interface is " + soapStubInterface + ") was not found.");
+            System.out.printf("[JPAEntitiesFactory] Fields realisation for the interface %s was not found.\n",
+                                                                                                soapStubInterface);
+            return Optional.empty();
         }
         else {
             Class<? extends ${fieldsPackage}.IFieldProvider> clazz = mapFactoryInstances.get(soapStubInterface);
-                for (int i = 0; i < clazz.getDeclaredConstructors().length; i++) {
-                        System.out.println(">> found cunstructor "
-                            + clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName()
-                            + "; soap type ois " + soapStubInterface);
-                        if (clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName().equals(soapStubInterface)) {
-                            return (${fieldsPackage}.IFieldProvider) clazz.newInstance();
-                        }
-                   }
-            return null;
+            return Optional.of((${fieldsPackage}.IFieldProvider) clazz.newInstance());
+
+            /* this code works only for Axis. CXF doesn't generate any constructors in stubs
+               for (int i = 0; i < clazz.getDeclaredConstructors().length; i++) {
+
+                    System.out.printf(">> found cunstructor %s; soap type is %s\n",
+                            clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName(),
+                            soapStubInterface);
+
+                    if (clazz.getDeclaredConstructors()[i].getParameterTypes()[0].getTypeName().equals(soapStubInterface)) {
+                        return Optional.of((${fieldsPackage}.IFieldProvider) clazz.newInstance());
+                    }
+                }
+            return Optional.empty();
+            */
         }
     }
+
 }

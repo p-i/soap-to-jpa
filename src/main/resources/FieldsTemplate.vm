@@ -18,11 +18,6 @@ public static class ${className}Fields implements ${fieldsPackage}.IFieldProvide
 #else
 package ${package};
 
-import ${factoryPackageName}.JPAEntitiesFactory;
-import org.apache.commons.lang.reflect.MethodUtils;
-
-import java.lang.reflect.InvocationTargetException;
-import java.util.stream.Stream;
 import javax.annotation.Generated;
 import java.util.Map;
 
@@ -36,7 +31,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
 #end
 
     private Object soapObject;
-    private Object jpaObject;
+    private ${fieldsPackage}.IJpaStub jpaObject;
     private final Map<java.lang.String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapNestedFields;
     private IFunctionLoadInnerClasses fnOnCreate;
 
@@ -118,7 +113,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     */
     @Override
     public boolean hasIdentField() {
-        return ${isContainingIdentField};
+        return ${hasIdentField};
     }
 
     /**
@@ -173,11 +168,27 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     @Override
     public ${className}Fields initiateJPA(final Object soapStub, java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAccumulator) {
         this.soapObject = soapStub;
+        final ${soapStubClass} stub = (${soapStubClass}) soapStub;
         if (null == this.fnOnCreate) {
-            this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub);
+            this.jpaObject = new ${jpaClass}(stub);
         }
         else {
-            this.jpaObject = new ${jpaClass}( (${soapStubClass}) soapStub, this.fnOnCreate, mapAccumulator);
+#if($hasIdentField)
+#set($capitalizedFieldName = ${display.capitalize($identityFieldName)})
+                if(null != stub.get${capitalizedFieldName}()) {
+                // try to find this object in database first
+#set($stringIdent = "stub.get${capitalizedFieldName}()")
+                #parse("ParsedIdentField.vm")
+                this.jpaObject = (${jpaClass}) this.fnOnCreate.load(${jpaClass}.class, stubIdent);
+                }
+#end
+            if (null == this.jpaObject) {
+                this.jpaObject = new ${jpaClass}(stub, this.fnOnCreate, mapAccumulator);
+            }
+            else {
+                this.jpaObject.populate(soapStub, this.fnOnCreate, mapAccumulator);
+                this.jpaObject.setNew(false);
+            }
         }
         return this;
     }
@@ -207,7 +218,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      *
      */
     @Override
-    public Object build() {
+    public ${fieldsPackage}.IJpaStub build() {
         return this.jpaObject;
     }
 
@@ -243,7 +254,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
             "${currentField}"#if($foreach.hasNext), #end
 
 #else
-            "${currentField},${innerClassFields.get($currentField)}.${display.capitalize($identField)}"#if($foreach.hasNext), #end
+            "${currentField},${innerClassFields.get($currentField)}.${display.capitalize($identityFieldName)}"#if($foreach.hasNext), #end
 
 #end
 #end
