@@ -33,7 +33,8 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     private Object soapObject;
     private ${fieldsPackage}.IJpaStub jpaObject;
     private final Map<java.lang.String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapNestedFields;
-    private IFunctionLoadInnerClasses fnOnCreate;
+    private IFunctionLoadInnerClasses fnOnLookup;
+    private IFunctionPersistInnerClass fnOnCreate;
 
 #*
 
@@ -169,24 +170,24 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     public ${className}Fields initiateJPA(final Object soapStub, java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAccumulator) {
         this.soapObject = soapStub;
         final ${soapStubClass} stub = (${soapStubClass}) soapStub;
-        if (null == this.fnOnCreate) {
+        if (null == this.fnOnLookup) {
             this.jpaObject = new ${jpaClass}(stub);
         }
         else {
 #if($hasIdentField)
 #set($capitalizedFieldName = ${display.capitalize($identityFieldName)})
-                if(null != stub.get${capitalizedFieldName}()) {
+            if(null != stub.get${capitalizedFieldName}()) {
                 // try to find this object in database first
 #set($stringIdent = "stub.get${capitalizedFieldName}()")
                 #parse("ParsedIdentField.vm")
-                this.jpaObject = (${jpaClass}) this.fnOnCreate.load(${jpaClass}.class, stubIdent);
-                }
+                this.jpaObject = (${jpaClass}) this.fnOnLookup.load(${jpaClass}.class, stubIdent);
+            }
 #end
             if (null == this.jpaObject) {
-                this.jpaObject = new ${jpaClass}(stub, this.fnOnCreate, mapAccumulator);
+                this.jpaObject = new ${jpaClass}(stub, this.fnOnLookup, this.fnOnCreate, mapAccumulator);
             }
             else {
-                this.jpaObject.populate(soapStub, this.fnOnCreate, mapAccumulator);
+                this.jpaObject.populate(soapStub, this.fnOnLookup, this.fnOnCreate, mapAccumulator);
                 this.jpaObject.setNew(false);
             }
         }
@@ -207,11 +208,20 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      *
      */
     @Override
-    public ${className}Fields onCreate(final IFunctionLoadInnerClasses lambda) {
-         this.fnOnCreate = lambda;
+    public ${className}Fields onLookup(final IFunctionLoadInnerClasses lambda) {
+         this.fnOnLookup = lambda;
          return this;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public ${className}Fields onCreate(final IFunctionPersistInnerClass lambda) {
+        this.fnOnCreate = lambda;
+        return this;
+    }
 
     /**
      * {@inheritDoc}

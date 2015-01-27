@@ -36,11 +36,16 @@ public interface IJpaStub {
     */
     void setNew(boolean isNew);
 
+    /**
+     * Returns number of all the initialized fields
+     */
+    int getInitializedFieldsCount();
 
     /*
      * Populate JPA object with a data. Can be called either by constructor while creating or by client side while updating
      */
     int populate(Object stub,
-        ${package}.IFieldProvider.IFunctionLoadInnerClasses fnLoadObject,
+        ${package}.IFieldProvider.IFunctionLoadInnerClasses fnLookupObject,
+        ${package}.IFieldProvider.IFunctionPersistInnerClass fnCreateObject,
         java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc);
 }

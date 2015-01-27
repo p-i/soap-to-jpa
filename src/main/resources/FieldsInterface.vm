@@ -88,7 +88,10 @@ public interface IFieldProvider {
      * Usually we need might want to extract existing data before
      * creating new one, to verify that
      */
-    IFieldProvider onCreate(IFunctionLoadInnerClasses lambda);
+    IFieldProvider onLookup(IFunctionLoadInnerClasses lambda);
+
+
+    IFieldProvider onCreate(IFunctionPersistInnerClass lambda);
 
     /**
      * Build ready JPA object populated with data
@@ -125,5 +128,19 @@ public interface IFieldProvider {
          * @params id - identity with type ${identityFieldType} for this object
          */
         Object load(Class<? extends ${package}.IJpaStub> classJpa, ${identityFieldType} primaryKey);
+    }
+
+    /**
+     * Interface for lambda, used to persist inner classes
+     */
+    @FunctionalInterface
+    public interface IFunctionPersistInnerClass {
+
+        /**
+         * Persists the given object
+         *
+         * @params JPA instance - jpa to be saved
+         */
+        void persist(${package}.IJpaStub jpaInstance);
     }
 }

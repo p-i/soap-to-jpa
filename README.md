@@ -138,6 +138,7 @@ There are few parameters that you may use to adjust your work with the plugin.
 | **fieldsPackageName**       | The plugin generates the for each entity additional class *[EntityName]Fields*, containing all the list of used fields. The parameter specifies where to put these files                                                                                            | *"org.apache.maven.soap.jpa.fields"* |
 | **fieldNameUsedAsIdentityName** | The name of field that should be treated as unique ID  | *"id"* |
 | **fieldNameUsedAsIdentityType** | Type of Unique field (FQN) | *"java.lang.Long"* |
+| **tableNamePrefix**         | Prefix for a table name. Recommended to set up in order to avoid using reserved words | *"SOAP"* |
 
 You can specify these parameters in the following way:
 

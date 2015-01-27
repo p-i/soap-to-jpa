@@ -80,6 +80,9 @@ public class SoapToJpaMojo extends AbstractMojo {
     @Parameter( defaultValue = "java.lang.Long", readonly = true )
     private String fieldNameUsedAsIdentityType;
 
+    @Parameter( defaultValue = "SOAP", readonly = true )
+    private String tableNamePrefix;
+
     // The set of postfixes. If a class has this part in its name, then this file will be ignored
     private final Set<String> setForbiddenNames = ImmutableSet.of("ObjectFactory", "Factory", "Impl");
 
@@ -483,6 +486,17 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         final List<InnerClass> lstInnerClasses = this.getListOfInnerClasses(t, mapInterfaces, mapOfConstructors, jc, mostUpperClass);
 
+        // in case of inner classes we have to use prefixes for fields in order to avoid duplicates.
+        final String fieldPrefix = isEmbedded ?
+                StringUtils.uncapitalize(jc.getName()) + "_"
+                : "";
+
+        // check whether current class has Ident field
+        final boolean hasIdentField = mapOfFields.keySet()
+                .parallelStream()
+                .anyMatch((field) -> field.equals(this.fieldNameUsedAsIdentityName));
+
+
         VelocityContext context = new VelocityContext();
         context.put("isEmbedded", isEmbedded);
         context.put("package", jc.getPackageName());
@@ -495,6 +509,10 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("identityFieldName", this.fieldNameUsedAsIdentityName);
         context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
         context.put("fieldsPackage", this.fieldsPackageName);
+        context.put("tableNamePrefix", this.tableNamePrefix);
+        context.put("fieldPrefix", fieldPrefix);
+        context.put("hasIdentField", hasIdentField);
+
 
         if (isEmbedded) {
             final String className = jc.getFullyQualifiedName().replace("$","JPA.") + "JPA";
