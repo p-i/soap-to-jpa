@@ -44,8 +44,5 @@ public interface IJpaStub {
     /*
      * Populate JPA object with a data. Can be called either by constructor while creating or by client side while updating
      */
-    int populate(Object stub,
-        ${package}.IFieldProvider.IFunctionLoadInnerClasses fnLookupObject,
-        ${package}.IFieldProvider.IFunctionPersistInnerClass fnCreateObject,
-        java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc);
+    int populate(Object stub, java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc);
 }

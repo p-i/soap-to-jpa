@@ -115,6 +115,7 @@ public class FieldType {
     public boolean isDefined() {
         return this.typeName != null;
     }
+    public boolean isString() { return String.class.getTypeName().equals(this.typeName); }
     public boolean isShouldBeCasted() { return this.isShouldBeCasted; }
 
     @Override
