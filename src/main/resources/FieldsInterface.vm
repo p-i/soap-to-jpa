@@ -116,6 +116,11 @@ public interface IFieldProvider {
     boolean hasIdentField();
 
     /**
+     * Returns an underlying stub type.
+     */
+    Class<?> getStubClass();
+
+    /**
      * Interface for lambda, used to load existing object from a database
      */
     @FunctionalInterface

@@ -213,6 +213,15 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      *
      */
     @Override
+    public Class<?> getStubClass() {
+        return ${soapStubClass}.class;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
     public ${className}Fields onLookup(final IFunctionLoadInnerClasses lambda) {
          this.fnOnLookup = lambda;
          return this;
