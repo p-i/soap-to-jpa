@@ -515,12 +515,12 @@ public class SoapToJpaMojo extends AbstractMojo {
 
 
         if (isEmbedded) {
-            final String className = jc.getFullyQualifiedName().replace("$","JPA.") + "JPA";
-            context.put("constructors", mapOfConstructors.get(className));
+            final String className = jc.getFullyQualifiedName().replace("$",".");
+            context.put("constructors", className);
         }
         else {
-            final String className = jc.getPackageName() + "." + jc.getName() + "JPA";
-            context.put("constructors", mapOfConstructors.get(className));
+            final String className = jc.getPackageName() + "." + jc.getName();
+            context.put("constructors", className);
         }
 
         StringWriter writer = new StringWriter();

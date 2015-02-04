@@ -1,11 +1,12 @@
 package net.pibenchmark;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.thoughtworks.qdox.model.JavaClass;
+import com.thoughtworks.qdox.model.JavaField;
 import com.thoughtworks.qdox.model.JavaMethod;
 import net.pibenchmark.pojo.FieldType;
 import org.apache.maven.plugin.logging.Log;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
@@ -13,7 +14,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
 
-import static org.junit.Assert.assertEquals;
+import java.util.List;
+
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 
 /**
@@ -29,11 +32,20 @@ public class BuildHelperTest {
     private JavaClass jc;
 
     @Mock
+    private JavaClass jcParent;
+
+    @Mock
+    private JavaClass jcObject;
+
+    @Mock
+    private JavaField mockedField;
+
+    @Mock
     private Log log;
 
-    @Before
-    public void setUp() {
+    public BuildHelperTest() {
         MockitoAnnotations.initMocks(this);
+        when( jcObject.getName() ).thenReturn(Object.class.getTypeName());
     }
 
     @Test
@@ -54,6 +66,7 @@ public class BuildHelperTest {
     public void testReturnTypeAsPrimitive()
     {
         when( jm.getReturnType().getGenericFullyQualifiedName() ).thenReturn(String.class.getTypeName());
+        when( jm.getReturns() ).thenReturn( jcObject );
         when( jc.getCanonicalName() ).thenReturn("no matter");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), "number", log);
@@ -68,6 +81,7 @@ public class BuildHelperTest {
     {
         when( jm.getReturnType().getGenericFullyQualifiedName() ).thenReturn(boolean.class.getTypeName());
         when( jm.getReturns().getName() ).thenReturn(boolean.class.getSimpleName());
+        when( jm.getReturns() ).thenReturn( jcObject );
         when( jc.getCanonicalName() ).thenReturn("no matter");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), "number", log);
@@ -82,6 +96,7 @@ public class BuildHelperTest {
     {
         when( jm.getReturnType().getGenericFullyQualifiedName() ).thenReturn("byte[]");
         when( jm.getReturns().getName() ).thenReturn("byte");
+        when( jm.getReturns() ).thenReturn( jcObject );
         when( jc.getCanonicalName() ).thenReturn("no matter");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm, ImmutableMap.of(), "number", log);
@@ -96,6 +111,7 @@ public class BuildHelperTest {
     public void testReturnTypeAsArrayOfComplexType()
     {
         when( jm.getReturnType().getGenericFullyQualifiedName() ).thenReturn("com.taleo.tee400.Document[]");
+        when( jm.getReturns() ).thenReturn( jcObject );
         when( jc.getCanonicalName() ).thenReturn("com.taleo.tee400.Requisition");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm,
@@ -111,6 +127,7 @@ public class BuildHelperTest {
     public void testReturnTypeAsComplexType()
     {
         when( jm.getReturnType().getGenericFullyQualifiedName() ).thenReturn("com.taleo.itk.ws.query.Boolean");
+        when( jm.getReturns() ).thenReturn( jcObject );
         when( jc.getCanonicalName() ).thenReturn("com.taleo.tee400.Requisition");
 
         FieldType returnType = BuildHelper.getReturnType(jc, jm,
@@ -122,6 +139,28 @@ public class BuildHelperTest {
         assertEquals("com.taleo.itk.ws.query.Boolean", returnType.getOriginalTypeName());
     }
 
+    @Test
+    public void testCollectAllFields() {
+
+        /*
+            situation, where we want have a class with no fields, extending
+            another parent class that has field "number".
+
+            Verify, that "recursivelyCollectAllFields()" method detects
+            that child class has "number" field.
+         */
+        when( mockedField.getName() ).thenReturn("number");
+        when( jcParent.getFields() ).thenReturn(ImmutableList.of(mockedField));
+        when( jcParent.getName() ).thenReturn("TestParentClass");
+        when( jc.getSuperJavaClass()).thenReturn( jcParent );
+
+        // collect all the fields (including parent ones)
+        final List<JavaField> javaFields = BuildHelper.collectParentFields(jc);
+
+        assertNotNull(javaFields);
+        assertTrue(javaFields.stream().anyMatch((field) -> field.getName().equals("number")));
+        assertTrue(javaFields.stream().noneMatch((field) -> field.getName().equals("nonExistingField")));
+    }
 
 
 }

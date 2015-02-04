@@ -1,6 +1,7 @@
 package net.pibenchmark;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaField;
@@ -24,6 +25,7 @@ import java.util.Set;
 public class BuildHelper {
 
     private static final int GETTER_PREFIX_LENGTH = "get".length();
+    private static final String OBJECT_CLASS_NAME = Object.class.getTypeName();
 
     private static final Set<String> PRIMITIVES = ImmutableSet.of(
             String.class.getTypeName(),
@@ -98,6 +100,21 @@ public class BuildHelper {
         return map;
     }
 
+    static List<JavaField> collectParentFields(JavaClass javaClass){
+        if (null == javaClass || javaClass.isArray() || javaClass.isPrimitive()) {
+            return Lists.newArrayList();
+        }
+        else if (null == javaClass.getSuperJavaClass()) {
+            return javaClass.getFields();
+        }
+        else {
+            final List<JavaField> fields = javaClass.getFields();
+            fields.addAll(javaClass.getSuperJavaClass().getFields());
+            return fields;
+        }
+    }
+
+
     /**
      * Returns correct type for a method. In the stub a method returns XMLbean name, but we want
      * that this class should be assigned to according JPA class.
@@ -114,10 +131,9 @@ public class BuildHelper {
         final boolean isTypeInnerClass = strType.length() > jc.getCanonicalName().length()
                                           && strType.startsWith(jc.getCanonicalName() + ".");
 
-        final boolean hasIdentField = method.getReturns()
-                .getFields()
+        final boolean hasIdentField = collectParentFields(method.getReturns())
                 .parallelStream()
-                .anyMatch( (JavaField field) -> field.getName().equalsIgnoreCase(idFieldName) );
+                .anyMatch((JavaField field) -> field.getName().equalsIgnoreCase(idFieldName));
 
         if (PRIMITIVES.contains(strType)) {
             return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, hasIdentField);

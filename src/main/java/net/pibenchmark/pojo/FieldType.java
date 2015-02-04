@@ -144,6 +144,7 @@ public class FieldType {
                 .add("typeName", typeName)
                 .add("originalTypeName", originalTypeName)
                 .add("typeKind", typeKind)
+                .add("hasIdentField", hasIdentField)
                 .toString();
     }
 }

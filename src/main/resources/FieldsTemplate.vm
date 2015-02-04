@@ -189,12 +189,12 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
         }
 #end
         if (null == this.jpaObject) {
-            this.jpaObject = new ${jpaClass}(stub, mapAccumulator);
+            this.jpaObject = new ${jpaClass}();
         }
         else {
-            this.jpaObject.populate(soapStub,  mapAccumulator);
-            this.jpaObject.setNew(false);
+           this.jpaObject.setNew(false);
         }
+        this.jpaObject.populate(soapStub,  mapAccumulator);
 
         return this;
     }
@@ -287,6 +287,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
         if (o == null) return false;
         return this.getProjectedFullClassName().equals(o.getProjectedFullClassName());
     }
+
 #*
 
 

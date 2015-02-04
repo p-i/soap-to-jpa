@@ -66,7 +66,7 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #if(!${hasIdentField})
     @GeneratedValue(strategy=GenerationType.AUTO)
 #end
-    @Column(name="_${identityFieldName.toUpperCase()}")
+    @Column(name="ID_${identityFieldName.toUpperCase()}")
     private ${identityFieldType} _${identityFieldName};
 
     public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
@@ -89,7 +89,7 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 
     @Transient
     @PersistenceContext
-    EntityManager em;
+    transient EntityManager em;
 
     // keeps number of filled fields
     @Transient
@@ -128,56 +128,6 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #end
 
     public ${className}JPA() {}
-#*
-
-
-    Generate few constructors for each SOAP types assigned with this JPA
-*#
-#foreach( $constructor in $constructors )
-    /**
-     * Constructor, that restores an instance of ${className}JPA
-     * from SOAP stub $constructor
-     *
-     * @param stub - instance of typeName <code>${constructor}</code>
-     */
-    public ${className}JPA(${constructor} stub) {
-        this(stub,
-            new java.util.HashMap<java.lang.String, java.util.Set<${identityFieldType}>>() );
-        System.out.println(" # Constructor without argument was called for ${package}.${className}");
-    }
-
-    /**
-     * Constructor, that restores an instance of ${className}JPA
-     * from SOAP stub $constructor
-     *
-     * @param stub - instance of typeName <code>${constructor}</code>
-     * @param lmbLoadObject - lambda-function that loads a given object by the ID
-     * @param mapAcc - map-accumulator "class name" <==> "set of ID's" that collects all the objects
-     *                 with their ID that has all the fields empty except Ident field.
-     *                 In the future we can reload data for these objects.
-     */
-    public ${className}JPA(${constructor} stub,
-                           java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc) {
-
-        this.populate(stub, mapAcc);
-
-#if(!${isEmbedded})
-        this.isNew = true;
-
-        // if current object is empty (only "_${identityFieldName}" field has a value), then add it to accumulator map:
-        if (this.cntInitialized == 1 && null != this._${identityFieldName}) {
-            if (mapAcc.containsKey("${package}.${className}")) {
-                java.util.Set<${identityFieldType}> setExistingIds = mapAcc.get("${package}.${className}");
-                setExistingIds.add(this._${identityFieldName});
-                mapAcc.put("${package}.${className}", setExistingIds);
-            }
-            else {
-                mapAcc.put("${package}.${className}", com.google.common.collect.Sets.newHashSet(this._${identityFieldName}));
-            }
-        }
-#end
-
-    } // end of constructor
 
 
 #*
@@ -191,14 +141,12 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
      *
      */
     @Override
-    public int populate(Object stubObject,
-                            java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc) {
-
-        System.out.println("[${className}JPA] populate(): em is " + em);
+    @org.springframework.transaction.annotation.Transactional
+    public int populate(Object stubObject, java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc) {
 
         // count how many fields are not null
         this.cntInitialized = 0;
-        final ${constructor} stub = (${constructor}) stubObject;
+        final ${constructors} stub = (${constructors}) stubObject;
 
 #foreach( $field in $fieldMap.keySet() )
 #set($currentField = ${fieldMap.get($field)})
@@ -254,8 +202,14 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
         }
         if (null == this._${fieldPrefix}${field}) {
             // if it doesn't exist, then create and persist a new one
-            this._${fieldPrefix}${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}(), mapAcc);
-            if (null != this._${fieldPrefix}${field}.get${display.capitalize($identityFieldName)}()) em.persist(this._${fieldPrefix}${field});
+            this._${fieldPrefix}${field} = new ${currentField.getTypeName()}();
+            this._${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
+            if (null != this._${fieldPrefix}${field}.get${display.capitalize($identityFieldName)}()) {
+                em.persist(this._${fieldPrefix}${field});
+            }
+            else {
+                this._${fieldPrefix}${field} = null;
+            }
         }
         else {
             // otherwise populate existing
@@ -263,7 +217,8 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
         }
         this.cntInitialized++;
 #elseif( ${currentField.isComplexType()} || ${currentField.isInnerClass()} )
-            final ${currentField.getTypeName()} obj_${fieldPrefix}${field} = new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}(), mapAcc);
+            final ${currentField.getTypeName()} obj_${fieldPrefix}${field} = new ${currentField.getTypeName()}();
+            obj_${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
             if (obj_${fieldPrefix}${field}.getInitializedFieldsCount() > 0) {
                 this._${fieldPrefix}${field} = obj_${fieldPrefix}${field};
                 this.cntInitialized++;
@@ -273,19 +228,25 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 
 #end
 
+#if(!${isEmbedded})
+    this.isNew = true;
+
+    // if current object is empty (only "_${identityFieldName}" field has a value), then add it to accumulator map:
+    if (this.cntInitialized == 1 && null != this._${identityFieldName}) {
+        if (mapAcc.containsKey("${package}.${className}")) {
+            java.util.Set<${identityFieldType}> setExistingIds = mapAcc.get("${package}.${className}");
+            setExistingIds.add(this._${identityFieldName});
+            mapAcc.put("${package}.${className}", setExistingIds);
+        }
+        else {
+            mapAcc.put("${package}.${className}", com.google.common.collect.Sets.newHashSet(this._${identityFieldName}));
+        }
+    }
+#end
+
         return this.cntInitialized;
     }
-#end
 
-
-#if(!${constructors})
-    // if there is no constructors available, implement method to keep compilability
-    @Override
-    public int populate(Object stub,
-                        java.util.Map<java.lang.String, java.util.Set<${identityFieldType}>> mapAcc) {
-        return 0;
-    }
-#end
 #*
 
     Getters and setters
@@ -339,7 +300,6 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
      *
      * This code requires Guava library.
      */
-/*
     @Override
     public int hashCode() {
         return com.google.common.base.Objects.hashCode(
@@ -351,7 +311,6 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #end
             31#* just to garantee ability to be compiled *#);
     }
-*/
 
 #*
     equals()
@@ -362,7 +321,6 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
      *
      * This code requires Guava library.
      */
-/*
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -379,5 +337,4 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #end
             ;
     }
-*/
 }
