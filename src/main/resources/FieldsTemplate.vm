@@ -191,9 +191,8 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
         if (null == this.jpaObject) {
             this.jpaObject = new ${jpaClass}();
         }
-        else {
-           this.jpaObject.setNew(false);
-        }
+
+        this.jpaObject.setPopulated(true);
         this.jpaObject.populate(soapStub,  mapAccumulator);
 
         return this;
@@ -215,6 +214,15 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     @Override
     public Class<?> getStubClass() {
         return ${soapStubClass}.class;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public Class<? extends  ${fieldsPackage}.IJpaStub> getJPAClass() {
+        return ${jpaClass}.class;
     }
 
     /**

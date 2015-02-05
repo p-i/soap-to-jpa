@@ -21,20 +21,31 @@ import javax.annotation.Generated;
 public interface IJpaStub {
 
     /**
-     * Returns the state of JPA: created/updated.
-     * Transient.
+     * Returns the state of JPA: empty/populated.
+     * We can not rely on NULL because it is possible key, when
+     * any object is populated, but still has no actual data,
+     * because this object on the remote Taleo server does not
+     * contain any data.
      *
-     * @return TRUE - created, FALSE - updated
+     * @return status
+     *            TRUE - contains data, thus it is already populated.
+     *            FALSE - just created, contains only ID. Needs to be populated.
      */
-    boolean isNew();
+    boolean isPopulated();
 
     /**
-     * Set the state of JPA: created/updated.
-     * Transient.
+     * Set the state of JPA: empty/populated.
      *
-     * @param isNew TRUE - created, FALSE - updated
-    */
-    void setNew(boolean isNew);
+     * @param isPopulated
+     *            TRUE - contains data, thus it is already populated.
+     *            FALSE - just created, contains only ID. Needs to be populated.
+     */
+    void setPopulated(boolean isPopulated);
+
+    /**
+     * Returns the ID of current object
+     */
+    ${identityFieldType} get${display.capitalize($identityFieldName)}();
 
     /**
      * Returns number of all the initialized fields

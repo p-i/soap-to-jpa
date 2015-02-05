@@ -215,6 +215,8 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("package", fieldsPackageName);
         context.put("generationDate", generationDate);
         context.put("identityFieldType", this.fieldNameUsedAsIdentityType);
+        context.put("identityFieldName", this.fieldNameUsedAsIdentityName);
+        context.put("display", new DisplayTool());
 
         StringWriter writer = new StringWriter();
         t.merge( context, writer );

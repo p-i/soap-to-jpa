@@ -17,13 +17,13 @@
 *#
 #if($isEmbedded)
 
-    /**
-     * Inner class ${className}JPA.
-     **/
-    @Embeddable
-    @Configurable(autowire = Autowire.BY_TYPE, dependencyCheck = false)
-    @Generated(value = "net.pibenchmark.SoapToJpaMojo", date = "${generationDate}", comments = "SoapToJpa Maven plugin")
-    public static class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub {
+/**
+ * Inner class ${className}JPA.
+ **/
+@Embeddable
+@Configurable(autowire = Autowire.BY_TYPE, dependencyCheck = false)
+@Generated(value = "net.pibenchmark.SoapToJpaMojo", date = "${generationDate}", comments = "SoapToJpa Maven plugin")
+public static class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub {
 #else
 package $package;
 
@@ -69,22 +69,24 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
     @Column(name="ID_${identityFieldName.toUpperCase()}")
     private ${identityFieldType} _${identityFieldName};
 
+    @Override
     public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
     public void set${display.capitalize($identityFieldName)}(${identityFieldType} id) { this._${identityFieldName} = id; }
 
-    // keeps object status: created/updated
-    @Transient
-    private boolean isNew;
+    // keeps object status: empty or filled with data
+    @Column(name="IS_POPULATED")
+    private boolean isPopulated = false;
 
     @Override
-    public boolean isNew() { return isNew; }
+    public boolean isPopulated() { return isPopulated; }
     @Override
-    public void setNew(boolean isNew) {this.isNew = isNew;}
+    public void setPopulated(boolean isPopulated) {this.isPopulated = isPopulated;}
 
 #else
 
-    @Override public boolean isNew() { return false; }
-    @Override public void setNew(boolean isNew) {}
+    @Override public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return null; }
+    @Override public boolean isPopulated() { return false; }
+    @Override public void setPopulated(boolean isPopulated) {}
 #end
 
     @Transient
@@ -229,7 +231,6 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #end
 
 #if(!${isEmbedded})
-    this.isNew = true;
 
     // if current object is empty (only "_${identityFieldName}" field has a value), then add it to accumulator map:
     if (this.cntInitialized == 1 && null != this._${identityFieldName}) {
@@ -241,6 +242,9 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
         else {
             mapAcc.put("${package}.${className}", com.google.common.collect.Sets.newHashSet(this._${identityFieldName}));
         }
+    }
+    else if (this.cntInitialized > 1) {
+        this.isPopulated = true;
     }
 #end
 
@@ -265,7 +269,7 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 *#
 #if(!${innerClasses.isEmpty()})
 #foreach($innerClass in $innerClasses)
-        ${innerClass.getSourceCode()} // end of ${innerClass.getClassName()}JPA class
+            ${innerClass.getSourceCode()} // end of ${innerClass.getClassName()}JPA class
 #end
 #end
 #*

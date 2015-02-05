@@ -121,6 +121,11 @@ public interface IFieldProvider {
     Class<?> getStubClass();
 
     /**
+     * Returns an underlying JPA type.
+     */
+    Class<? extends ${package}.IJpaStub> getJPAClass();
+
+    /**
      * Interface for lambda, used to load existing object from a database
      */
     @FunctionalInterface
