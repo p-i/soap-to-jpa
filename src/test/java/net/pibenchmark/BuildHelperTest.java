@@ -2,6 +2,7 @@ package net.pibenchmark;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaField;
 import com.thoughtworks.qdox.model.JavaMethod;
@@ -14,6 +15,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -160,6 +164,80 @@ public class BuildHelperTest {
         assertNotNull(javaFields);
         assertTrue(javaFields.stream().anyMatch((field) -> field.getName().equals("number")));
         assertTrue(javaFields.stream().noneMatch((field) -> field.getName().equals("nonExistingField")));
+    }
+
+    /**
+     * situation, where we want have a class with no fields, extending
+     * another parent class that has field "number".
+     *
+     * Verify, that "recursivelyCollectAllFields()" method detects
+     * that child class has "number" field.
+     *
+     * @throws FileNotFoundException
+     */
+    @Test
+    public void testCheckForID() throws FileNotFoundException {
+
+        // given: A class, that has no fields, but it grand-parent has "number" field
+        final JavaProjectBuilder builder = new JavaProjectBuilder();
+        builder.addSource(new FileReader(this.getSourceFile("A.java")));
+        final JavaClass jc = builder.getClassByName("A");
+
+        // when: we recursively looking up to the ID field
+        final boolean isFound = BuildHelper.recursivelyLookupForIDfield(jc, "number");
+
+        // then: we successfully find it
+        assertTrue(isFound);
+    }
+
+    @Test
+    public void testCheckForUnexistingField() throws FileNotFoundException {
+
+        // given: A class, that has no fields, but it grand-parent has "number" field
+        final JavaProjectBuilder builder = new JavaProjectBuilder();
+        builder.addSource(new FileReader(this.getSourceFile("A.java")));
+
+        // when: we recursively looking up to the ID field
+        final JavaClass jc = builder.getClassByName("A");
+        final boolean isFound = BuildHelper.recursivelyLookupForIDfield(jc, "anyUnexistingFiled");
+
+        // then: we find it
+        assertFalse(isFound);
+    }
+
+    @Test
+    public void testCheckForIDFirstClass() throws FileNotFoundException {
+
+        // given: A class, that has no fields, but it grand-parent has "number" field
+        final JavaProjectBuilder builder = new JavaProjectBuilder();
+        builder.addSource(new FileReader(this.getSourceFile("D.java")));
+
+        // when: we recursively looking up to the ID field
+        final JavaClass jc = builder.getClassByName("D");
+        final boolean isFound = BuildHelper.recursivelyLookupForIDfield(jc, "number");
+
+        // then: we successfully find it
+        assertTrue(isFound);
+    }
+
+    @Test
+    public void testCheckForUnexistingFieldFirstClass() throws FileNotFoundException {
+
+        // given: A class, that has no fields, but it grand-parent has "number" field
+        final JavaProjectBuilder builder = new JavaProjectBuilder();
+        builder.addSource(new FileReader(this.getSourceFile("D.java")));
+
+        // when: we recursively looking up to the ID field
+        final JavaClass jc = builder.getClassByName("D");
+        final boolean isFound = BuildHelper.recursivelyLookupForIDfield(jc, "anyUnexistingFiled");
+
+        // then: we don't find it
+        assertFalse(isFound);
+    }
+
+    private File getSourceFile(String strFileName) {
+        ClassLoader classLoader = getClass().getClassLoader();
+        return new File(classLoader.getResource(strFileName).getFile());
     }
 
 

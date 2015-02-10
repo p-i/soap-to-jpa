@@ -192,8 +192,8 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
             this.jpaObject = new ${jpaClass}();
         }
 
-        this.jpaObject.setPopulated(true);
         this.jpaObject.populate(soapStub,  mapAccumulator);
+        this.jpaObject.setPopulated(true);
 
         return this;
     }

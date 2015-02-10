@@ -150,85 +150,8 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
         this.cntInitialized = 0;
         final ${constructors} stub = (${constructors}) stubObject;
 
-#foreach( $field in $fieldMap.keySet() )
-#set($currentField = ${fieldMap.get($field)})
-#set($capitalizedFieldName = ${display.capitalize($field)})
-##
-##
-##    Instantiate every field regarding its type
-##
-        if (null != stub.get${capitalizedFieldName}()) {
-#if( ${currentField.isShouldBeCasted()} )
-            #parse("CastField.vm")
-            this.cntInitialized++;
-#elseif(${fieldMap.get($field).isString()})
-            if (!stub.get${capitalizedFieldName}().isEmpty()) {
-                this._${fieldPrefix}${field} = stub.get${capitalizedFieldName}();
-                this.cntInitialized++;
-            }
-#elseif( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
-            this._${fieldPrefix}${field} = stub.get${capitalizedFieldName}();
-            this.cntInitialized++;
-#elseif( ${currentField.isArrayOfComplextType()} )#*
-
-
-            Transfer an array to a collection and mark it as "One-to-many"
-        *#
-        final int _${field}Size = stub.get${capitalizedFieldName}().length;
-        this._${fieldPrefix}${field} = com.google.common.collect.Lists.newArrayList();
-        for (int i = 0; i < _${field}Size; i++) {
-            this._${fieldPrefix}${field}.add( new ${currentField.getTypeName()}(stub.get${capitalizedFieldName}()[i]) );
-        }
-        this.cntInitialized++;
-#elseif( ${currentField.isCollection()} )#*
-
-
-            Populate the collection in a loop, creating of a new instance on every iteration
-        *#
-        this._${fieldPrefix}${field} = com.google.common.collect.Lists.newArrayList();
-        for (Object obj : stub.get${capitalizedFieldName}()) {
-            this._${field}.add( obj);
-        }
-        this.cntInitialized++;
-#elseif(${isEmbedded} && ${fieldMap.get($field).isComplexType()} && ${fieldMap.get($field).hasIdentField()})#*
-
-          For the inner class: try to get object using lambda. Print this code
-          only if inner object has Ident (ID or Number) field.
-
-       *#
-        if(null != stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}()) {
-            // try to find this object in database first
-#set($stringIdent = "stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}()")
-            #parse("ParsedIdentField.vm")
-            this._${fieldPrefix}${field} = (${currentField.getTypeName()}) em.find(${currentField.getTypeName()}.class, stubIdent);
-        }
-        if (null == this._${fieldPrefix}${field}) {
-            // if it doesn't exist, then create and persist a new one
-            this._${fieldPrefix}${field} = new ${currentField.getTypeName()}();
-            this._${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
-            if (null != this._${fieldPrefix}${field}.get${display.capitalize($identityFieldName)}()) {
-                em.persist(this._${fieldPrefix}${field});
-            }
-            else {
-                this._${fieldPrefix}${field} = null;
-            }
-        }
-        else {
-            // otherwise populate existing
-            this._${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
-        }
-        this.cntInitialized++;
-#elseif( ${currentField.isComplexType()} || ${currentField.isInnerClass()} )
-            final ${currentField.getTypeName()} obj_${fieldPrefix}${field} = new ${currentField.getTypeName()}();
-            obj_${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
-            if (obj_${fieldPrefix}${field}.getInitializedFieldsCount() > 0) {
-                this._${fieldPrefix}${field} = obj_${fieldPrefix}${field};
-                this.cntInitialized++;
-            }
-#end
-        }
-
-#end
+        // initiate all the fields
+        #parse("Populate.vm")
 
 #if(!${isEmbedded})
 

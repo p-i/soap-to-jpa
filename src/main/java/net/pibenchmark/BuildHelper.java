@@ -100,6 +100,22 @@ public class BuildHelper {
         return map;
     }
 
+    static boolean recursivelyLookupForIDfield(JavaClass javaClass, String idFieldName) {
+        //System.out.println("loop " + javaClass.getFullyQualifiedName() + " - " + java.lang.Object.class.getTypeName());
+        if (null == javaClass || javaClass.isArray() || javaClass.isPrimitive() || javaClass.getFullyQualifiedName().equals(java.lang.Object.class.getTypeName())) {
+            return false;
+        }
+        else if (null == javaClass.getSuperJavaClass()) {
+            return false;
+        }
+        else if(null == javaClass.getFieldByName(idFieldName)) {
+            return recursivelyLookupForIDfield(javaClass.getSuperJavaClass(), idFieldName);
+        }
+        else {
+            return true;
+        }
+    }
+
     static List<JavaField> collectParentFields(JavaClass javaClass){
         if (null == javaClass || javaClass.isArray() || javaClass.isPrimitive()) {
             return Lists.newArrayList();
@@ -131,15 +147,11 @@ public class BuildHelper {
         final boolean isTypeInnerClass = strType.length() > jc.getCanonicalName().length()
                                           && strType.startsWith(jc.getCanonicalName() + ".");
 
-        final boolean hasIdentField = collectParentFields(method.getReturns())
-                .parallelStream()
-                .anyMatch((JavaField field) -> field.getName().equalsIgnoreCase(idFieldName));
-
         if (PRIMITIVES.contains(strType)) {
-            return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, hasIdentField);
+            return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, false, 0);
         }
         else if (strType.equals(List.class.getTypeName()) || strType.equals(Set.class.getTypeName())) {
-            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType, strSimpleType, hasIdentField);
+            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType, strSimpleType, false, 0);
         }
         else if (strType.endsWith("[]")) {
             final String strTypeOfArray = strType.substring(0, strType.length()-2);
@@ -147,7 +159,7 @@ public class BuildHelper {
 
             if (PRIMITIVES.contains(strTypeOfArray)) {
                 // array of primitives
-                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray, strTypeOfArray, hasIdentField);
+                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray, strTypeOfArray, false, 0);
             }
             else if (isArrayTypeIsSubclass) {
                 // array of inner class objects
@@ -155,7 +167,8 @@ public class BuildHelper {
                         method.getReturns().getName() + "JPA",
                         strTypeOfArray,
                         strTypeOfArray,
-                        hasIdentField);
+                        false,
+                        0);
             }
             else {
                 // array of complex types
@@ -163,18 +176,25 @@ public class BuildHelper {
                         mapInterfaces.get(strTypeOfArray),
                         strTypeOfArray,
                         strTypeOfArray,
-                        hasIdentField);
+                        false,
+                        0);
             }
-        }
-        else if (isTypeInnerClass) {
-            if (!mapInterfaces.containsKey(strType)) {
-                log.warn("Can not transfer type " + strType + " to JPA inner class. " +
-                        "Probably, this is a class instead of an interface. This field will be omitted.");
-            }
-            return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField);
         }
         else {
-            return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField);
+
+            final boolean hasIdentField = recursivelyLookupForIDfield(method.getReturns(), idFieldName);
+            final int fieldsCount = method.getReturns().getFields().size();
+
+            if (isTypeInnerClass) {
+                if (!mapInterfaces.containsKey(strType)) {
+                    log.warn("Can not transfer type " + strType + " to JPA inner class. " +
+                            "Probably, this is a class instead of an interface. This field will be omitted.");
+                }
+                return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount);
+            }
+            else {
+                return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount);
+            }
         }
     }
 

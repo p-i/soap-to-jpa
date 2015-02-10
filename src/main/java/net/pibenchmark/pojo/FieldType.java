@@ -24,18 +24,20 @@ public class FieldType {
     private final String originalTypeSimpleName; // simple name
     private final byte typeKind;
     private final boolean hasIdentField; // whether current class has ident field (ID)
+    private final int cntFields; // count of fields for complex type. For primitives, arrays, collections it is «0»
 
     // if original type does not match target type
     private boolean isShouldBeCasted;
     private CastType castType;
 
-    public FieldType(byte b, String fullTypeName, String originalTypeName, String originalTypeSimpleName, boolean isHavingIdentField) {
+    public FieldType(byte b, String fullTypeName, String originalTypeName, String originalTypeSimpleName, boolean isHavingIdentField, int fieldsCount) {
         this.typeKind = b;
         this.typeName = fullTypeName;
         this.originalTypeName = originalTypeName;
         this.isShouldBeCasted = false;
         this.originalTypeSimpleName = originalTypeSimpleName;
         this.hasIdentField = isHavingIdentField;
+        this.cntFields = fieldsCount;
     }
 
     public String getTypeName() {
@@ -65,6 +67,8 @@ public class FieldType {
     }
 
     public boolean hasIdentField() { return hasIdentField; }
+
+    public int getCountOfFields() { return cntFields; }
 
     /**
      * Return type ready to be rendered.
