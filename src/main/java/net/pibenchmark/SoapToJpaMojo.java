@@ -4,9 +4,7 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.*;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
-import com.thoughtworks.qdox.model.JavaField;
 import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import net.pibenchmark.pojo.FieldType;
 import net.pibenchmark.pojo.InnerClass;
 import org.apache.commons.lang.StringUtils;
@@ -23,16 +21,7 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
-import org.apache.velocity.tools.Scope;
-import org.apache.velocity.tools.ToolContext;
-import org.apache.velocity.tools.ToolManager;
-import org.apache.velocity.tools.Toolbox;
-import org.apache.velocity.tools.config.FactoryConfiguration;
-import org.apache.velocity.tools.config.Property;
-import org.apache.velocity.tools.config.ToolConfiguration;
-import org.apache.velocity.tools.config.ToolboxConfiguration;
 import org.apache.velocity.tools.generic.DisplayTool;
-import org.apache.velocity.tools.generic.FieldTool;
 import org.apache.velocity.tools.generic.SortTool;
 
 import java.io.File;
@@ -41,7 +30,6 @@ import java.io.StringWriter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Mojo( name = "soap-to-jpa")
 public class SoapToJpaMojo extends AbstractMojo {
@@ -146,8 +134,8 @@ public class SoapToJpaMojo extends AbstractMojo {
             // write all the JPA classes
             this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
 
-            // write the Fields constants
-            this.generateFieldConstants(fieldsTemplate, mapInterfaces, mapOfFieldFiles);
+            // write the Field providers
+            this.generateFieldProviders(fieldsTemplate, mapInterfaces, mapOfFieldFiles);
 
             // write the Factory class
             this.generateFactory(factoryTemplate, mapOfFieldFiles);
@@ -256,15 +244,15 @@ public class SoapToJpaMojo extends AbstractMojo {
     }
 
     /**
-     * Generate files (interfaces) with only constants. This is the name of fields.
-     * Used to build a request to Taleo.
+     * Generate files for Field providers, containing name fields and other utility methods.
+     * Used to build a request to Taleo and generate/initiate JPAs
      *
      * @param fieldsTemplate
      * @throws IOException
      * @throws MojoFailureException
      */
-    private void generateFieldConstants(Template fieldsTemplate, Map<String, String> mapOfInterfaces, Map<String, String> mapOfFieldFiles) throws IOException, MojoFailureException {
-        getLog().info("Generation of the Field objects...");
+    private void generateFieldProviders(Template fieldsTemplate, Map<String, String> mapOfInterfaces, Map<String, String> mapOfFieldFiles) throws IOException, MojoFailureException {
+        getLog().info("Generation of the Field Provider classes...");
         int cntCreatedFiles = 0;
         int cntSkippedFiles = 0;
 

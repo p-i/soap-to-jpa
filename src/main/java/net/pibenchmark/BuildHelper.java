@@ -25,7 +25,6 @@ import java.util.Set;
 public class BuildHelper {
 
     private static final int GETTER_PREFIX_LENGTH = "get".length();
-    private static final String OBJECT_CLASS_NAME = Object.class.getTypeName();
 
     private static final Set<String> PRIMITIVES = ImmutableSet.of(
             String.class.getTypeName(),
@@ -64,10 +63,15 @@ public class BuildHelper {
         Map<String, FieldType> map = Maps.newTreeMap();
         boolean isGetter;
 
+
+
+
         final List<JavaMethod> lstMethods = jc.getMethods();
         if (null != jc.getSuperJavaClass()) {
             lstMethods.addAll(jc.getSuperJavaClass().getMethods());
         }
+
+
 
         for (JavaMethod method : lstMethods) {
             isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());
@@ -101,7 +105,6 @@ public class BuildHelper {
     }
 
     static boolean recursivelyLookupForIDfield(JavaClass javaClass, String idFieldName) {
-        //System.out.println("loop " + javaClass.getFullyQualifiedName() + " - " + java.lang.Object.class.getTypeName());
         if (null == javaClass || javaClass.isArray() || javaClass.isPrimitive() || javaClass.getFullyQualifiedName().equals(java.lang.Object.class.getTypeName())) {
             return false;
         }
