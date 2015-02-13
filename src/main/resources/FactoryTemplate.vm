@@ -16,7 +16,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class JPAEntitiesFactory {
 
     // build the map "interface FQN" <==> "Fields class"
-    private static final Map<String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapFactoryInstances
+    public static final Map<String, Class<? extends ${fieldsPackage}.IFieldProvider>> mapFactoryInstances
                                     = ImmutableMap.<String, Class<? extends ${fieldsPackage}.IFieldProvider>>builder()
 #foreach( $interface in $interfaces.keySet() )
         .put("${interface}", ${interfaces.get($interface)}.class)

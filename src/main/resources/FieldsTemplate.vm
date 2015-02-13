@@ -78,7 +78,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
      */
     public static java.util.List<java.lang.String> COMPLEX_FIELDS = com.google.common.collect.ImmutableList.<java.lang.String>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
-#if( !$primitiveFields.contains($mapOfFields.get($field)) )
+#if( !$primitiveFields.contains($mapOfFields.get($field)) && !$mapOfFieldTypes.get($mapOfFields.get($field)).isArray())
         .add(${field})
 #end
 #end
