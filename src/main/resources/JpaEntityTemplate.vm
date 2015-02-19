@@ -42,6 +42,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.Transient;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.ElementCollection;
 import javax.annotation.Generated;
 import java.io.Serializable;
 
@@ -105,27 +106,41 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 
     The list if private fields
 *#
-#foreach( $field in $fieldMap.keySet() )
-#if(${fieldMap.get(${field}).isArrayOfComplextType()})
+#foreach( $field in $fieldMap.keySet() )#*
+
+
+    Annotate field depending on its type
+*##if(${fieldMap.get(${field}).isArrayOfComplextType()})
     @OneToMany
     @JoinColumn
 #elseif(${fieldMap.get(${field}).isInnerClass()})
     @Embedded
-    @Column(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}", nullable = true)
 #elseif(${isEmbedded} && ${fieldMap.get($field).isComplexType()})
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}_id")
-#elseif(${isEmbedded} && ${fieldMap.get($field).isCollection()})
+#elseif(${fieldMap.get($field).isCollection()})
+#if(${fieldMap.get($field).isGenericInnerClass()})
+    @ElementCollection
+#else
     @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn
+#end
 #elseif(${fieldMap.get($field).isComplexType()})
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn
-#elseif(${field} != ${identityFieldName})
+#elseif(!${field.equalsIgnoreCase($identityFieldName)})
     @Column(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}", nullable = true)
-#end
-#if(${field} != ${identityFieldName})
+#end#*
+
+
+     Declare field depending on its type. Append default value if necessary
+*##if(!${field.equalsIgnoreCase($identityFieldName)})
+#if(${fieldMap.get($field).isCollection()})
+    private ${fieldMap.get($field).render()}  _${fieldPrefix}${field} = com.google.common.collect.Lists.newArrayList();
+#elseif(${fieldMap.get(${field}).isInnerClass()})
+    private ${fieldMap.get($field).render()}  _${fieldPrefix}${field} = new ${fieldMap.get($field).render()}();
+#else
     private ${fieldMap.get($field).render()}  _${fieldPrefix}${field};
+#end
 #end
 #end
 
@@ -179,7 +194,7 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
     Getters and setters
 *#
 #foreach( $field in $fieldMap.keySet() )
-#if(${field} != ${identityFieldName})
+#if(!${field.equalsIgnoreCase($identityFieldName)})
     ## Getter:
     public ${fieldMap.get($field).render()} get${display.capitalize($field)}() { return this._${fieldPrefix}${field}; }
     ## Setter:
@@ -212,7 +227,9 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
                     .add("_${identityFieldName}", this._${identityFieldName})
 #end
 #foreach( $field in $fieldMap.keySet() )
+#if(!${field.equalsIgnoreCase($identityFieldName)})
                     .add("${field}", this._${fieldPrefix}${field})
+#end
 #end
                     .omitNullValues()
                     .toString();
@@ -231,7 +248,9 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
     public int hashCode() {
         return com.google.common.base.Objects.hashCode(
 #foreach( $field in $fieldMap.keySet() )
+#if(!${field.equalsIgnoreCase($identityFieldName)})
             this._${fieldPrefix}${field},
+#end
 #end
 #if(!${isEmbedded})
             this._${identityFieldName},
@@ -260,7 +279,9 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
             && com.google.common.base.Objects.equal(this._${identityFieldName}, that._${identityFieldName})
 #end
 #foreach( $field in $fieldMap.keySet() )
+#if(!${field.equalsIgnoreCase($identityFieldName)})
             && com.google.common.base.Objects.equal(this._${fieldPrefix}${field}, that._${fieldPrefix}${field})
+#end
 #end
             ;
     }

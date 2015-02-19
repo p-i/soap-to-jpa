@@ -303,7 +303,8 @@ public class SoapToJpaMojo extends AbstractMojo {
                 jc,
                 getLog(),
                 this.fieldNameUsedAsIdentityName,
-                this.fieldNameUsedAsIdentityType);
+                this.fieldNameUsedAsIdentityType,
+                this.builder);
 
         // map "field on LOWER_CASE" <==> "field in CamelCase"
         final Map<String, String> mapOfFields = mapOfFieldTypes.keySet()
@@ -319,6 +320,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .filter((field) -> mapOfFieldTypes.get(field).isPrimitive())
                 .collect(Collectors.toSet());
 
+        /*
         // set of complex field names that do not have identity fields (or getter for ID)
         final Set<String> setOfIdentitylessObjects = mapOfFieldTypes
                 .keySet()
@@ -335,7 +337,7 @@ public class SoapToJpaMojo extends AbstractMojo {
                 })
                 .map((fieldName) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, fieldName))
                 .collect(Collectors.toSet());
-
+        */
 
         final List<JavaClass> nestedClasses = jc.getNestedClasses();
         final ImmutableList.Builder<InnerClass> lstInnerClassesBuilder = ImmutableList.builder();
@@ -378,7 +380,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("soapStubClass", jc.getCanonicalName().replace("$", "."));
         context.put("mapOfFieldTypes", mapOfFieldTypes);
         context.put("mapOfFieldFiles", mapOfFieldFiles);
-        context.put("hasIdentField", setOfPrimitives.contains(this.fieldNameUsedAsIdentityName));
+        context.put("hasIdentField", setOfPrimitives.stream().anyMatch((field) -> field.equalsIgnoreCase(this.fieldNameUsedAsIdentityName)));
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );
@@ -464,7 +466,8 @@ public class SoapToJpaMojo extends AbstractMojo {
                 mostUpperClass,
                 getLog(),
                 this.fieldNameUsedAsIdentityName,
-                this.fieldNameUsedAsIdentityType);
+                this.fieldNameUsedAsIdentityType,
+                this.builder);
 
         // map "field in CamelCase" <==> "field on LOWER_CASE"
         final Map<String, String> mapOfCamelFields = mapOfFields.keySet()
@@ -484,7 +487,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         // check whether current class has Ident field
         final boolean hasIdentField = mapOfFields.keySet()
                 .parallelStream()
-                .anyMatch((field) -> field.equals(this.fieldNameUsedAsIdentityName));
+                .anyMatch((field) -> field.equalsIgnoreCase(this.fieldNameUsedAsIdentityName));
 
 
         VelocityContext context = new VelocityContext();

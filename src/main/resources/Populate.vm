@@ -1,3 +1,4 @@
+// map: ${fieldMap}
 #foreach( $field in $fieldMap.keySet() )
 #set($currentField = ${fieldMap.get($field)})
 #set($capitalizedFieldName = ${display.capitalize($field)})
@@ -5,7 +6,8 @@
 ##
 ##    Instantiate every field regarding its type
 ##
-    if (null != stub.get${capitalizedFieldName}()) {
+### #if(${fieldMap.get($field).getCountOfFields()} != 0)
+    if (null != (java.lang.Object) stub.get${capitalizedFieldName}()) {
 #if( ${currentField.isShouldBeCasted()} )
         #parse("CastField.vm")
         this.cntInitialized++;
@@ -19,6 +21,8 @@
         this.cntInitialized++;
 #elseif( ${currentField.isArrayOfComplextType()} )#*
 
+
+
         Arrays.
         Transfer an array to a collection and mark it as "One-to-many"
 
@@ -31,21 +35,26 @@
         this.cntInitialized++;
 #elseif( ${currentField.isCollection()} )#*
 
+
+
         Collections.
         Populate the collection in a loop, creating of a new instance on every iteration
 
         *#
-        this._${fieldPrefix}${field} = com.google.common.collect.Lists.newArrayList();
-        for (Object obj : stub.get${capitalizedFieldName}()) {
-            this._${field}.add( obj);
+        for (${currentField.getOriginalTypeName()} stubItem : stub.get${capitalizedFieldName}()) {
+            ${currentField.getTypeName()} jpa = new ${currentField.getTypeName()}();
+            jpa.populate(stubItem, mapAcc);
+            this._${fieldPrefix}${field}.add(jpa);
         }
         this.cntInitialized++;
 #elseif(${fieldMap.get($field).getCountOfFields()} == 0)#*
 
+
+
         Complex class
         Skip that, because it does not contain fields at all.
 
-        *#          // skip this field, because ${currentField.getTypeName()} does not contain fields
+        *#          // skip this field, because ${currentField.getTypeName()} does not contain fields; field=${field}
 #elseif(${isEmbedded} && ${fieldMap.get($field).isComplexType()} && ${fieldMap.get($field).hasIdentField()})
 #set($stringIdent = "stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}()")#*
 
@@ -84,5 +93,5 @@
         }
 #end
     }
-
+## #end
 #end

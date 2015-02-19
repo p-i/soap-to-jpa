@@ -5,6 +5,8 @@ import com.google.common.base.Objects;
 import net.pibenchmark.CastType;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by ilja on 06/10/14.
@@ -19,7 +21,8 @@ public class FieldType {
     public static final byte COMPLEX_TYPE = 5;
     public static final byte INNER_CLASS = 6;
 
-    private final String typeName;
+    private final String typeName; // JPA type. For a collection it also refers to JPA generic type
+    private boolean isGenericInnerClass; // whether class that we refer (this.typeName) is inner class or not
     private final String originalTypeName; // FQN
     private final String originalTypeSimpleName; // simple name
     private final byte typeKind;
@@ -30,6 +33,16 @@ public class FieldType {
     private boolean isShouldBeCasted;
     private CastType castType;
 
+    /**
+     *
+     *
+     * @param b
+     * @param fullTypeName - the full type of JPA class
+     * @param originalTypeName - the full name of origin type (stub)
+     * @param originalTypeSimpleName - the simple name of a stub class (without package)
+     * @param isHavingIdentField
+     * @param fieldsCount
+     */
     public FieldType(byte b, String fullTypeName, String originalTypeName, String originalTypeSimpleName, boolean isHavingIdentField, int fieldsCount) {
         this.typeKind = b;
         this.typeName = fullTypeName;
@@ -86,7 +99,7 @@ public class FieldType {
                 return this.typeName + "[]";
 
             case COLLECTION:
-                return List.class.getTypeName();
+                return List.class.getTypeName() + "<" + this.typeName + ">";
 
             default:
                 return this.typeName;
@@ -122,6 +135,14 @@ public class FieldType {
     public boolean isString() { return String.class.getTypeName().equals(this.typeName); }
     public boolean isShouldBeCasted() { return this.isShouldBeCasted; }
 
+    public boolean isGenericInnerClass() {
+        return isGenericInnerClass;
+    }
+
+    public void setGenericInnerClass(boolean isGenericInnerClass) {
+        this.isGenericInnerClass = isGenericInnerClass;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -149,6 +170,7 @@ public class FieldType {
                 .add("originalTypeName", originalTypeName)
                 .add("typeKind", typeKind)
                 .add("hasIdentField", hasIdentField)
+                .add("countOfFields", cntFields)
                 .toString();
     }
 }

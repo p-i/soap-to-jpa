@@ -50,7 +50,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     The list if constants
 *#
 #foreach( $field in $mapOfFields.keySet() )
-    public static java.lang.String ${field} = "${display.capitalize($mapOfFields.get($field))}";
+    public static java.lang.String ${field} = "$mapOfFields.get($field)";
 #end
 
     /**
@@ -92,7 +92,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
         mapNestedFields = com.google.common.collect.ImmutableMap
             .<java.lang.String, Class<? extends ${fieldsPackage}.IFieldProvider>>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
-#set($currentField = ${display.capitalize($mapOfFields.get($field))})
+#set($currentField = ${mapOfFields.get($field)})
 #set($isNotPrimitive = !$primitiveFields.contains($mapOfFields.get($field)) && !$mapOfFieldTypes.get($mapOfFields.get($field)).isArray() )
 #set($isInnerClass = $innerClassNames.contains($currentField))
 #if($isNotPrimitive)

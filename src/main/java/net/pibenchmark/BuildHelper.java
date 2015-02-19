@@ -1,12 +1,14 @@
 package net.pibenchmark;
 
+import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.thoughtworks.qdox.model.JavaClass;
-import com.thoughtworks.qdox.model.JavaField;
-import com.thoughtworks.qdox.model.JavaMethod;
+import com.thoughtworks.qdox.JavaProjectBuilder;
+import com.thoughtworks.qdox.model.*;
+import com.thoughtworks.qdox.model.expression.AnnotationValue;
 import net.pibenchmark.pojo.FieldType;
+import org.apache.commons.lang.StringUtils;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 
@@ -17,7 +19,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Builds one JPA file based on a given interfaces.
@@ -46,6 +51,8 @@ public class BuildHelper {
             "org.apache.xmlbeans.XmlObject"
     );
 
+    private static final String GENERIC_TYPE_REGEXP = "(?<=\\<)[\\w\\.]+(?=>)";
+
     /**
      * Builds map "field" <==> "type". We take fields only by getters,
      * because XMLBeans generates other methods, for example xset...().
@@ -58,50 +65,72 @@ public class BuildHelper {
      * @return
      */
     public static Map<String, FieldType> buildMapOfFields(JavaClass jc, Map<String, String> mapInterfaces,
-                                                          JavaClass mostUpperClass, Log log, String idFieldName, String idFieldType) {
+                                                          JavaClass mostUpperClass, Log log, String idFieldName,
+                                                          String idFieldType, JavaProjectBuilder builder) {
 
         Map<String, FieldType> map = Maps.newTreeMap();
         boolean isGetter;
-
-
-
 
         final List<JavaMethod> lstMethods = jc.getMethods();
         if (null != jc.getSuperJavaClass()) {
             lstMethods.addAll(jc.getSuperJavaClass().getMethods());
         }
 
-
-
         for (JavaMethod method : lstMethods) {
             isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());
             if(isGetter) {
-                final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, idFieldName, log);
+                final FieldType returnType = getReturnType(mostUpperClass, method, mapInterfaces, idFieldName, log, builder);
+
                 if (!RESERVED_TYPES.contains(returnType.getTypeName()) && returnType.isDefined()) {
-                    final String fieldName = extractFieldName(method.getName());
+                    String fieldName = extractFieldName(method.getName());
+                    final String fieldByNameClone = fieldName; // in order to use it in lambdas
 
                     // check: if a field exists, then it must be annotated with @XmlElement
-                    boolean shouldBeSkipped = false;
-                    final JavaField fieldByName = jc.getFieldByName(fieldName);
-                    if (null != fieldByName) {
-                        shouldBeSkipped = fieldByName.getAnnotations()
+                    final Optional<JavaField> optField = collectParentFields(jc)
+                            .parallelStream()
+                            .filter((javaField) -> javaField.getName().equalsIgnoreCase(fieldByNameClone))
+                            .findFirst();
+
+                    if (optField.isPresent()) {
+                        fieldName = optField.get().getAnnotations()
                                 .stream()
-                                .noneMatch((annotation) -> annotation.getType().isA(XmlElement.class.getCanonicalName()));
+                                .filter((annotation) -> annotation.getType().isA(XmlElement.class.getCanonicalName())
+                                        && annotation.getProperty("name") != null)
+                                .map((annotation) -> annotation.getProperty("name").toString().replaceAll("\"", ""))
+                                .map(BuildHelper::recapitalizeRemovingUnderscores) // <-- workaround
+                                .findFirst()
+                                .orElse(fieldName);
                     }
 
-                    if (fieldName.equals(idFieldName)) {
-                        final boolean isCastingNeeded = !returnType.getOriginalTypeName().equals(idFieldType);
+                    if (fieldName.equalsIgnoreCase(idFieldName)) {
+                        final boolean isCastingNeeded = !returnType.getOriginalTypeName().equalsIgnoreCase(idFieldType);
                         if (isCastingNeeded) {
                             returnType.setShouldBeCasted(isCastingNeeded);
                             returnType.cast(returnType.getOriginalTypeName(), idFieldType);
                         }
                     }
-                    if (!shouldBeSkipped) map.put(fieldName, returnType);
+                    map.put(fieldName, returnType);
 
                 }
             }
         }
         return map;
+    }
+
+    /**
+     * Workaround: replace such field names like "regex_like" back to camel-case: "regexLike"
+     *
+     * @param val
+     * @return
+     */
+    static String recapitalizeRemovingUnderscores(String val) {
+        String[] output = val.split("_");
+        if (output.length > 1) {
+            for (int j = 1; j < output.length; j++) {
+                output[j] = StringUtils.capitalize(output[j]);
+            }
+        }
+        return StringUtils.join(output,"");
     }
 
     static boolean recursivelyLookupForIDfield(JavaClass javaClass, String idFieldName) {
@@ -143,7 +172,10 @@ public class BuildHelper {
      * @param log
      * @return type as string
      */
-    static FieldType getReturnType(JavaClass jc, JavaMethod method, Map<String, String> mapInterfaces, String idFieldName, Log log) {
+    static FieldType getReturnType(JavaClass jc, JavaMethod method, Map<String, String> mapInterfaces,
+                                   String idFieldName, Log log, JavaProjectBuilder builder) {
+
+
         final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
         final String strSimpleType = method.getReturns().getName();
 
@@ -153,8 +185,19 @@ public class BuildHelper {
         if (PRIMITIVES.contains(strType)) {
             return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, false, 0);
         }
-        else if (strType.equals(List.class.getTypeName()) || strType.equals(Set.class.getTypeName())) {
-            return new FieldType(FieldType.COLLECTION, method.getReturns().getName() + "JPA", strType, strSimpleType, false, 0);
+        else if (strType.startsWith(List.class.getTypeName()) || strType.startsWith(Set.class.getTypeName())) {
+            final boolean isGenericInner = method.getReturnType().getGenericFullyQualifiedName().contains("$");
+            final String genericType = extractGenericTypeFromCollection(strType);
+            final String originalSimpleName = genericType.substring(genericType.lastIndexOf('.') + 1);
+
+            // get generic class as JavaClass from builder and count fields number
+            final JavaClass genericClass = builder.getClassByName(genericType);
+            final int genericClassFieldsCount = genericClass.getFields().size();
+
+            final FieldType fieldType = new FieldType(FieldType.COLLECTION, mapInterfaces.get(genericType), genericType, originalSimpleName, false, genericClassFieldsCount);
+            fieldType.setGenericInnerClass(isGenericInner);
+            return fieldType;
+
         }
         else if (strType.endsWith("[]")) {
             final String strTypeOfArray = strType.substring(0, strType.length()-2);
@@ -199,6 +242,18 @@ public class BuildHelper {
                 return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount);
             }
         }
+    }
+
+    /**
+     * Extracts the generic class for any type having generics. Speaking in other words,
+     * it extracts type between "<" and ">". If not found, returns Object.class.
+     *
+     * @param collectionType
+     * @return generic type
+     */
+    static String extractGenericTypeFromCollection(String collectionType) {
+        final Matcher matcher = Pattern.compile(GENERIC_TYPE_REGEXP).matcher(collectionType);
+        return matcher.find() ? matcher.group() : Object.class.getTypeName();
     }
 
     /**

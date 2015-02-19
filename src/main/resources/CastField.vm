@@ -7,11 +7,11 @@
 
 *#
 #if(${currentField.getCastType()} == "STRING_TO_LONG")
-            this._${fieldPrefix}${field} = java.lang.Long.parseLong(stub.get${capitalizedFieldName}());
+            this.set${capitalizedFieldName}(java.lang.Long.parseLong(stub.get${capitalizedFieldName}()));
 #elseif(${currentField.getCastType()} == "STRING_TO_INT")
             this._${fieldPrefix}${field} = java.lang.Integer.parseInteger(stub.get${capitalizedFieldName}());
 #elseif(${currentField.getCastType()} == "STRING_TO_FLOAT")
             this._${fieldPrefix}${field} = java.lang.Float.parseFloat(stub.get${capitalizedFieldName}());
 #else
-            // don't know how to parse ${currentField.getCastType()} type for field this._${field}
+            // don't know how to parse ${currentField.getCastType()} type for field this._${field} -- ${currentField}
 #end
