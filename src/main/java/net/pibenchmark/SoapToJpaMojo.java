@@ -4,6 +4,7 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.*;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
+import com.thoughtworks.qdox.model.JavaPackage;
 import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
 import net.pibenchmark.pojo.FieldType;
 import net.pibenchmark.pojo.InnerClass;
@@ -116,7 +117,7 @@ public class SoapToJpaMojo extends AbstractMojo {
 
         try {
 
-            // collect all interfaces to map "full interface name" <==> "fully qualified JPA name"
+            // collect all interfaces to map "full stub name" <==> "fully qualified JPA name"
             final Map<String, String> mapInterfaces = builder.getClasses()
                     .stream()
                    /* .filter( (jc) -> jc.isInterface() ) */
@@ -477,7 +478,14 @@ public class SoapToJpaMojo extends AbstractMojo {
                         Function.<String>identity(),
                         (field) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, field) ));
 
-        final List<InnerClass> lstInnerClasses = this.getListOfInnerClasses(t, mapInterfaces, mapOfConstructors, jc, mostUpperClass);
+        // build list of "strangers"
+        final Map<String, FieldType> mapOfStrangers = this.buildMapOfInnerClassesBelongingToAnotherEntity(mostUpperClass.getFullyQualifiedName(), mapOfFields);
+
+
+        // build the bodies of inner classes
+        final List<InnerClass> lstInnerClasses = this.getListOfInnerClasses(t, mapInterfaces, mapOfConstructors, jc, mostUpperClass, mapOfStrangers);
+
+        modifyContextForStrangerTypes(mapOfFields,mapOfStrangers,jc.getName());
 
         // in case of inner classes we have to use prefixes for fields in order to avoid duplicates.
         final String fieldPrefix = isEmbedded ?
@@ -522,6 +530,38 @@ public class SoapToJpaMojo extends AbstractMojo {
         return writer.toString();
     }
 
+    void modifyContextForStrangerTypes(Map<String, FieldType> mapOfFields, Map<String, FieldType> mapOfStrangers, String name) {
+        mapOfFields.keySet()
+                .stream()
+                .filter((key) -> mapOfStrangers.containsKey(key))
+                .map((key) -> {
+                    mapOfFields.get(key)
+                            .setOriginalTypeName(mapOfFields.get(key).getOriginalTypeName().replaceFirst("\\.[A-Z][\\w]+\\.", "." + name + "."));
+                    return key;
+                })
+                .count();
+    }
+
+    /**
+     * Fix for the inheritance: there are cases, when a class has references to an inner class, belonging to another class.
+     * This causes troubles in JPA, because of PK and FK constraints. This method finds out which fields are inner classes,
+     * belonging to another class.
+     *
+     * @param currentClassFQN
+     * @param mapOfFields
+     * @return
+     */
+    Map<String, FieldType> buildMapOfInnerClassesBelongingToAnotherEntity(final String currentClassFQN, Map<String, FieldType> mapOfFields) {
+        return  mapOfFields.keySet()
+                .stream()
+                .filter( (key) -> (mapOfFields.get(key).isInnerClass() || mapOfFields.get(key).isGenericInnerClass()) && !mapOfFields.get(key).hasIdentField())
+                .filter( (key) -> !mapOfFields.get(key).getOriginalTypeName().startsWith(currentClassFQN))
+                .collect(Collectors.toMap(
+                        Function.<String>identity(),
+                        mapOfFields::get
+                ));
+    }
+
     /**
      * Collect all the internal classes body code. In other words, it generates a code for each class
      * and return all of them as a collection
@@ -530,8 +570,19 @@ public class SoapToJpaMojo extends AbstractMojo {
      *
      * @return
      */
-    private List<InnerClass> getListOfInnerClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors, JavaClass jc, JavaClass mostUpperClass) {
+    private List<InnerClass> getListOfInnerClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors,
+                                                   JavaClass jc, JavaClass mostUpperClass, Map<String, FieldType> mapOfStrangers) {
+
         final List<JavaClass> nestedClasses = jc.getNestedClasses();
+
+        final List<DefaultJavaClass> listOfStrangers = mapOfStrangers
+                .keySet()
+                .parallelStream()
+                .map((key) -> (DefaultJavaClass) builder.getClassByName(mapOfStrangers.get(key).getOriginalTypeName()))
+                .collect(Collectors.toList());
+
+        //nestedClasses.addAll(listOfStrangers);
+
         if (!nestedClasses.isEmpty()) {
             final ImmutableList.Builder<InnerClass> listBuilder = ImmutableList.builder();
             for (JavaClass nestedClass : nestedClasses) {

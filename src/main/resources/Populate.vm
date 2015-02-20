@@ -1,4 +1,3 @@
-// map: ${fieldMap}
 #foreach( $field in $fieldMap.keySet() )
 #set($currentField = ${fieldMap.get($field)})
 #set($capitalizedFieldName = ${display.capitalize($field)})
@@ -12,11 +11,13 @@
         #parse("CastField.vm")
         this.cntInitialized++;
 #elseif(${fieldMap.get($field).isString()})
+        // string
         if (!stub.get${capitalizedFieldName}().isEmpty()) {
             this._${fieldPrefix}${field} = stub.get${capitalizedFieldName}();
             this.cntInitialized++;
         }
 #elseif( ${currentField.isPrimitive()} || ${currentField.isArrayOfPrimitives()})
+        // primitive or array of primitives
         this._${fieldPrefix}${field} = stub.get${capitalizedFieldName}();
         this.cntInitialized++;
 #elseif( ${currentField.isArrayOfComplextType()} )#*
@@ -27,6 +28,7 @@
         Transfer an array to a collection and mark it as "One-to-many"
 
         *#
+        // array
         final int _${field}Size = stub.get${capitalizedFieldName}().length;
         this._${fieldPrefix}${field} = com.google.common.collect.Lists.newArrayList();
         for (int i = 0; i < _${field}Size; i++) {
@@ -41,10 +43,18 @@
         Populate the collection in a loop, creating of a new instance on every iteration
 
         *#
+        // collection
         for (${currentField.getOriginalTypeName()} stubItem : stub.get${capitalizedFieldName}()) {
-            ${currentField.getTypeName()} jpa = new ${currentField.getTypeName()}();
-            jpa.populate(stubItem, mapAcc);
-            this._${fieldPrefix}${field}.add(jpa);
+#if(${currentField.hasIdentField()})
+             ${currentField.getTypeName()} jpaItem = em.find(${currentField.getTypeName()}.class, java.lang.Long.parseLong(stubItem.get${display.capitalize($identityFieldName)}()));
+             if (null == jpaItem) {
+                jpaItem = new ${currentField.getTypeName()}();
+             }
+#else
+            ${currentField.getTypeName()} jpaItem = new ${currentField.getTypeName()}();
+#end
+            jpaItem.populate(stubItem, mapAcc);
+            this._${fieldPrefix}${field}.add(jpaItem);
         }
         this.cntInitialized++;
 #elseif(${fieldMap.get($field).getCountOfFields()} == 0)#*
@@ -63,6 +73,7 @@
           only if inner object has Ident (ID or Number) field.
 
        *#
+        // embedded complex type with ID field
         if(null != stub.get${capitalizedFieldName}().get${display.capitalize($identityFieldName)}()) {
             // try to find this object in database first
             #parse("ParsedIdentField.vm")
@@ -85,9 +96,13 @@
         }
         this.cntInitialized++;
 #elseif( ${currentField.isComplexType()} || ${currentField.isInnerClass()} )
+        // complex type
         final ${currentField.getTypeName()} obj_${fieldPrefix}${field} = new ${currentField.getTypeName()}();
         obj_${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
         if (obj_${fieldPrefix}${field}.getInitializedFieldsCount() > 0) {
+#if(!${currentField.isInnerClass()})
+            em.persist(obj_${fieldPrefix}${field});
+#end
             this._${fieldPrefix}${field} = obj_${fieldPrefix}${field};
             this.cntInitialized++;
         }

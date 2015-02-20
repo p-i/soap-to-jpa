@@ -116,16 +116,17 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #elseif(${fieldMap.get(${field}).isInnerClass()})
     @Embedded
 #elseif(${isEmbedded} && ${fieldMap.get($field).isComplexType()})
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne
     @JoinColumn(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}_id")
 #elseif(${fieldMap.get($field).isCollection()})
 #if(${fieldMap.get($field).isGenericInnerClass()})
     @ElementCollection
 #else
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany
+    @JoinColumn
 #end
 #elseif(${fieldMap.get($field).isComplexType()})
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne
     @JoinColumn
 #elseif(!${field.equalsIgnoreCase($identityFieldName)})
     @Column(name = "${className.toUpperCase()}_${fieldCamelMap.get($field)}", nullable = true)
@@ -227,14 +228,13 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
                     .add("_${identityFieldName}", this._${identityFieldName})
 #end
 #foreach( $field in $fieldMap.keySet() )
-#if(!${field.equalsIgnoreCase($identityFieldName)})
+#if(!${field.equalsIgnoreCase($identityFieldName)} && !${fieldMap.get($field).isCollection()})
                     .add("${field}", this._${fieldPrefix}${field})
 #end
 #end
                     .omitNullValues()
                     .toString();
     }
-
 #*
     hashCode()
 *#

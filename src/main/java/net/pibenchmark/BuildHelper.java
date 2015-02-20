@@ -179,9 +179,6 @@ public class BuildHelper {
         final String strType = method.getReturnType().getGenericFullyQualifiedName().replace('$', '.');
         final String strSimpleType = method.getReturns().getName();
 
-        final boolean isTypeInnerClass = strType.length() > jc.getCanonicalName().length()
-                                          && strType.startsWith(jc.getCanonicalName() + ".");
-
         if (PRIMITIVES.contains(strType)) {
             return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, false, 0);
         }
@@ -194,7 +191,9 @@ public class BuildHelper {
             final JavaClass genericClass = builder.getClassByName(genericType);
             final int genericClassFieldsCount = genericClass.getFields().size();
 
-            final FieldType fieldType = new FieldType(FieldType.COLLECTION, mapInterfaces.get(genericType), genericType, originalSimpleName, false, genericClassFieldsCount);
+            final boolean hasIdentField = recursivelyLookupForIDfield(genericClass, idFieldName);
+
+            final FieldType fieldType = new FieldType(FieldType.COLLECTION, mapInterfaces.get(genericType), genericType, originalSimpleName, hasIdentField, genericClassFieldsCount);
             fieldType.setGenericInnerClass(isGenericInner);
             return fieldType;
 
@@ -230,6 +229,7 @@ public class BuildHelper {
 
             final boolean hasIdentField = recursivelyLookupForIDfield(method.getReturns(), idFieldName);
             final int fieldsCount = method.getReturns().getFields().size();
+            final boolean isTypeInnerClass = method.getReturns().isInner();
 
             if (isTypeInnerClass) {
                 if (!mapInterfaces.containsKey(strType)) {
