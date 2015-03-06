@@ -21,6 +21,7 @@ package ${package};
 
 import javax.annotation.Generated;
 import java.util.Map;
+import java.util.Set;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Configurable;
@@ -85,10 +86,25 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     .build();
 
     /**
+    * Array of only complex fields in the current class
+    */
+    public static java.util.List<java.lang.String> POLYMORPHIC_FIELDS = com.google.common.collect.ImmutableList.<java.lang.String>builder()
+#foreach( $field in $sorter.sort($mapOfFields.keySet()) )
+#set($currentField = ${mapOfFieldTypes.get($mapOfFields.get($field))})
+#if(${currentField.isAbstract()})
+#foreach($polymorphicField in $currentField.getImplementations())
+            .add("${polymorphicField}")
+#end
+#end
+#end
+        .build();
+
+    /**
      * Constructor.
      * Initiate map of inner classes
      */
     public ${className}Fields() {
+
         mapNestedFields = com.google.common.collect.ImmutableMap
             .<java.lang.String, Class<? extends ${fieldsPackage}.IFieldProvider>>builder()
 #foreach( $field in $sorter.sort($mapOfFields.keySet()) )
@@ -101,10 +117,21 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
 #else
 #set($fieldProviderFullName = $mapOfFieldFiles.get($mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeName()))
                 .put("${currentField}", ${fieldProviderFullName}.class)
+#end#*
+
+
+    In case if current field is polymorphic, then print also all its implementations as well
+
+*##if($mapOfFieldTypes.get($mapOfFields.get($field)).isAbstract())
+                // its implementations
+#foreach($polymorphicField in $mapOfFieldTypes.get($mapOfFields.get($field)).getImplementations())
+                   .put("${polymorphicField}", ${polymorphicField}Fields.class)
+#end
 #end
 #end
 #end
             .build();
+
     }
 
     /**
@@ -114,6 +141,15 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     @Override
     public boolean isInner() {
         return ${isInner};
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public boolean hasPolymorphicField() {
+        return ${hasPolymorphicField};
     }
 
     /**
@@ -168,6 +204,15 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
     @Override
     public java.lang.String getProjectedFullClassName() {
         return "${soapStubClass}";
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public java.util.List<java.lang.String> getSetOfPolymorphicFields() {
+         return this.POLYMORPHIC_FIELDS;
     }
 
     /**

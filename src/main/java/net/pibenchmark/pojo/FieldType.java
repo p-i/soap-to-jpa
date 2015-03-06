@@ -4,7 +4,9 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import net.pibenchmark.CastType;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,6 +34,9 @@ public class FieldType {
     // if original type does not match target type
     private boolean isShouldBeCasted;
     private CastType castType;
+
+    private boolean isAbstract = false; // current class is too generic and it is used in polymorphic fields
+    private Set<String> setImplementations;
 
     /**
      *
@@ -110,6 +115,11 @@ public class FieldType {
         }
     }
 
+
+    public Set<String> getImplementations() {
+        return this.setImplementations;
+    }
+
     public boolean isPrimitive() { return this.typeKind == PRIMITIVE; }
     public boolean isArrayOfPrimitives() {
         return this.typeKind == ARRAY_OF_PRIMITIVES;
@@ -138,6 +148,10 @@ public class FieldType {
     }
     public boolean isString() { return String.class.getTypeName().equals(this.typeName); }
     public boolean isShouldBeCasted() { return this.isShouldBeCasted; }
+
+    public boolean isAbstract() {
+        return isAbstract;
+    }
 
     public boolean isGenericInnerClass() {
         return isGenericInnerClass;
@@ -175,6 +189,13 @@ public class FieldType {
                 .add("typeKind", typeKind)
                 .add("hasIdentField", hasIdentField)
                 .add("countOfFields", cntFields)
+                .add("isInnerClass", isInnerClass())
+                .add("isGenericInnerClass", isGenericInnerClass)
                 .toString();
+    }
+
+    public void addImplementations(Set<String> setImps) {
+        this.setImplementations = setImps;
+        this.isAbstract = !this.setImplementations.isEmpty();
     }
 }

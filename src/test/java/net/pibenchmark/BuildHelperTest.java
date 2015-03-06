@@ -7,6 +7,7 @@ import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaField;
 import com.thoughtworks.qdox.model.JavaMethod;
+import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
 import net.pibenchmark.pojo.FieldType;
 import org.apache.maven.plugin.logging.Log;
 import org.hamcrest.CoreMatchers;
@@ -23,6 +24,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
@@ -33,6 +35,14 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class BuildHelperTest {
+
+    // base path for "testFiles" directory
+    final String baseTestDir = new File("src/test/java").getAbsolutePath()
+            + File.separator
+            + this.getClass().getPackage().getName().replaceAll("\\.", File.separator)
+            + File.separator
+            + "testFiles"
+            + File.separator;
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private JavaMethod jm;
@@ -297,7 +307,7 @@ public class BuildHelperTest {
     }
 
     @Test
-    public void testReapitalyze() throws Exception {
+    public void testRecapitalyze() throws Exception {
 
         final String result = BuildHelper.recapitalizeRemovingUnderscores("regex_like");
         assert result.equals("regexLike");
@@ -327,6 +337,35 @@ public class BuildHelperTest {
         assertEquals("com.pi.Requisition", BuildHelper.extractGenericTypeFromCollection("java.util.List<com.pi.Requisition>"));
         assertEquals("java.lang.Object", BuildHelper.extractGenericTypeFromCollection("java.util.List"));
     }
+
+    @Test
+    public void testExtractImplementations() throws Exception {
+
+        // given: a class that has one field marked with @XmlElements annotation
+        final JavaProjectBuilder builder = new JavaProjectBuilder();
+        builder.addSourceTree(new File(baseTestDir));
+
+        final DefaultJavaClass jc = (DefaultJavaClass) builder.getClassByName("net.pibenchmark.testFiles.SimpleClassWithPolymorphicField");
+        assertNotNull(jc);
+
+        final JavaField lstTestField = jc.getFieldByName("lstTest");
+        assertNotNull(lstTestField);
+
+        // when: we request its implementations
+        final Set<String> setImplementations = BuildHelper.extractImplementations(lstTestField);
+
+        // then: it returns all the classes declared within @XmlElements annotation
+        assertFalse(setImplementations.isEmpty());
+
+        // and: it contains two classes
+        System.out.println("---" + setImplementations);
+        assertTrue(setImplementations.contains("SimpleClassOne"));
+        assertTrue(setImplementations.contains("SimpleClassTwo"));
+
+        // and: it does not contain the first class, that doesn't have an argument "type"
+        assertFalse(setImplementations.contains("Object"));
+    }
+
 
     private File getSourceFile(String strFileName) {
         ClassLoader classLoader = getClass().getClassLoader();

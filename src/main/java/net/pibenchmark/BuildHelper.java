@@ -1,18 +1,22 @@
 package net.pibenchmark;
 
 import com.google.common.base.CaseFormat;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.*;
 import com.thoughtworks.qdox.model.expression.AnnotationValue;
+import com.thoughtworks.qdox.model.expression.AnnotationValueList;
+import com.thoughtworks.qdox.model.impl.DefaultJavaAnnotation;
 import net.pibenchmark.pojo.FieldType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 
 import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElements;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -23,6 +27,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Builds one JPA file based on a given interfaces.
@@ -92,6 +99,8 @@ public class BuildHelper {
                             .findFirst();
 
                     if (optField.isPresent()) {
+
+                        // if current field is marked as @XmlElement, then use value from this annotation. Otherwise, use field name iself
                         fieldName = optField.get().getAnnotations()
                                 .stream()
                                 .filter((annotation) -> annotation.getType().isA(XmlElement.class.getCanonicalName())
@@ -100,6 +109,10 @@ public class BuildHelper {
                                 .map(BuildHelper::recapitalizeRemovingUnderscores) // <-- workaround
                                 .findFirst()
                                 .orElse(fieldName);
+
+                        // if current field is polymorphic (has many implementations) then collect all its implementations
+                        returnType.addImplementations(extractImplementations(optField.get()));
+
                     }
 
                     if (fieldName.equalsIgnoreCase(idFieldName)) {
@@ -376,5 +389,60 @@ public class BuildHelper {
         File factoryFile = new File(absPathFactoryFile);
         if (!factoryFile.exists()) factoryFile.createNewFile();
         return factoryFile;
+    }
+
+    /**
+     * <p>If a field is marked as @XmlElements, then it should contain the list of implementations.</p>
+     *
+     * <p>For example, </br>
+     *
+     *   <pre>
+     *         @XmlElements({
+     *            @XmlElement(name = "FirstClass"),
+     *            @XmlElement(name = "SecondClass", type = SecondClass.class),
+     *            @XmlElement(name = "ThirdClass", type = ThirdClass.class),
+     *            @XmlElement(name = "FourthClass", type = FourthClass.class),
+     *            @XmlElement(name = "FifthClass", type = FifthClass.class),
+     *        })
+     *       @Generated(value = "com.sun.tools.xjc.Driver", date = "2015-02-20T03:52:29+00:00", comments = "JAXB RI v2.2.10-b140310.1920")
+     *       protected List<FirstClass> lstField;
+     * </pre>
+     *
+     * As you can see, that given field has several implementations:
+     * SecondClass, ThirdClass, FourthClass and FifthClass. This method allows
+     * to extract the list containing these classes
+     * </p>
+     *
+     * <p>Note, that the very first class ("FirstClass" in this case) should be ommitted,
+     * because it is generic class and doesn't contain "type" attribute.</p>
+     *
+     * <p>Please refer to unit tests</p>
+     * @param field
+     * @return
+     */
+    public static Set<String> extractImplementations(JavaField field) {
+
+        // search for @XmlElements annotation
+        final Optional<JavaAnnotation> optElementsAnnotation = field.getAnnotations()
+                .stream()
+                .filter((annotation) -> annotation.getType().isA(XmlElements.class.getCanonicalName()))
+                .findFirst();
+
+        if (optElementsAnnotation.isPresent()) {
+            // get list of all the inner @XmlElement elements
+            final AnnotationValue value = optElementsAnnotation.get().getProperty("value");
+            final List<AnnotationValue> annotationValueList = ((AnnotationValueList) value).getValueList();
+
+            // ...and collect values from these annotations
+            return annotationValueList
+                    .stream()
+                    .map((val) -> (DefaultJavaAnnotation) val.getParameterValue())
+                    .filter((ann) -> ann.getPropertyMap().containsKey("type"))
+                    .map( (ann) -> ann.getProperty("name").getParameterValue().toString().replaceAll("\"", ""))
+                    .collect(Collectors.toSet());
+        }
+        else {
+            return ImmutableSet.of();
+        }
     }
 }

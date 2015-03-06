@@ -110,6 +110,19 @@ public interface IFieldProvider {
     boolean isInner();
 
     /**
+     * Returns TRUE in case if underlying stub class has
+     * an polymorphic field (that is represented with abstract class and has
+     * list of implementations in the @XmlElements annotation).
+     * Expected, that this fields are existed in mediator classes (inner classes)
+     */
+    boolean hasPolymorphicField();
+
+    /**
+     * Returns the list of all polymorphic fields (if any). Never returns null
+     */
+    java.util.List<java.lang.String> getSetOfPolymorphicFields();
+
+    /**
      * Returns TRUE in case if underlying stub class contains ident field (default name is "Id",
      * but user can define another name for identification)
      */

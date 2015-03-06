@@ -54,6 +54,9 @@
             ${currentField.getTypeName()} jpaItem = new ${currentField.getTypeName()}();
 #end
             jpaItem.populate(stubItem, mapAcc);
+#if(!${currentField.isGenericInnerClass()})
+            em.persist(jpaItem);
+#end
             this._${fieldPrefix}${field}.add(jpaItem);
         }
         this.cntInitialized++;

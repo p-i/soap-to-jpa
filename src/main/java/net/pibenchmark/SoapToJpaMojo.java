@@ -321,25 +321,6 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .filter((field) -> mapOfFieldTypes.get(field).isPrimitive())
                 .collect(Collectors.toSet());
 
-        /*
-        // set of complex field names that do not have identity fields (or getter for ID)
-        final Set<String> setOfIdentitylessObjects = mapOfFieldTypes
-                .keySet()
-                .parallelStream()
-                .filter((fieldName) -> {
-                    if (!setOfPrimitives.contains(fieldName)) {
-                        final String originalType = mapOfFieldTypes.get(fieldName).getOriginalTypeName();
-                        final JavaClass javaClass = new DefaultJavaClass(originalType);
-                        final boolean hasNumber = (null != javaClass.getMethod("get" + StringUtils.capitalize(this.fieldNameUsedAsIdentityName), null, false));
-                        return !hasNumber;
-                    } else {
-                        return false;
-                    }
-                })
-                .map((fieldName) -> CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, fieldName))
-                .collect(Collectors.toSet());
-        */
-
         final List<JavaClass> nestedClasses = jc.getNestedClasses();
         final ImmutableList.Builder<InnerClass> lstInnerClassesBuilder = ImmutableList.builder();
         final ImmutableSet.Builder<String> setInnerClassNamesBuilder = ImmutableSet.builder();
@@ -358,6 +339,10 @@ public class SoapToJpaMojo extends AbstractMojo {
                 }
             }
         }
+
+        // Check, whether current class has polymorphic fields, that are represented with abstract class
+        // and marked with @XmlElements annotations, containing implementations
+        final boolean hasPolymorphicField = mapOfFieldTypes.values().stream().anyMatch((type) -> type.isAbstract());
 
         VelocityContext context = new VelocityContext();
         context.put("package", jc.getPackageName());
@@ -382,6 +367,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("mapOfFieldTypes", mapOfFieldTypes);
         context.put("mapOfFieldFiles", mapOfFieldFiles);
         context.put("hasIdentField", setOfPrimitives.stream().anyMatch((field) -> field.equalsIgnoreCase(this.fieldNameUsedAsIdentityName)));
+        context.put("hasPolymorphicField", hasPolymorphicField);
 
         StringWriter writer = new StringWriter();
         fieldsTemplate.merge( context, writer );

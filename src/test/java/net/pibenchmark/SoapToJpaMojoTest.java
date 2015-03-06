@@ -2,9 +2,6 @@ package net.pibenchmark;
 
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.thoughtworks.qdox.JavaProjectBuilder;
-import com.thoughtworks.qdox.model.impl.DefaultJavaClass;
 import net.pibenchmark.pojo.FieldType;
 import org.junit.Test;
 
@@ -96,7 +93,7 @@ public class SoapToJpaMojoTest{
         assertFalse(output.containsKey("children"));
     }
 
-
+/*
     @Test
     public void testChangeClassContext() throws Exception {
 
@@ -115,7 +112,7 @@ public class SoapToJpaMojoTest{
         assertEquals("SimpleInnerClass",innerClass.getName());
         assertEquals(jcTwo,innerClass.getParentClass());
     }
-
+*/
 
     @Test
     public void testParentClassReplacer() throws Exception {
