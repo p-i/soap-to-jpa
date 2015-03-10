@@ -29,6 +29,7 @@ public class FieldType {
     private final byte typeKind;
     private final boolean hasIdentField; // whether current class has ident field (ID)
     private final int cntFields; // count of fields for complex type. For primitives, arrays, collections it is «0»
+    private final boolean isJpa; // is JPA object (having populate()) method or any other class (for example, Serializable)
 
     private String originalTypeName; // FQN
     // if original type does not match target type
@@ -48,7 +49,7 @@ public class FieldType {
      * @param isHavingIdentField
      * @param fieldsCount
      */
-    public FieldType(byte b, String fullTypeName, String originalTypeName, String originalTypeSimpleName, boolean isHavingIdentField, int fieldsCount) {
+    public FieldType(byte b, String fullTypeName, String originalTypeName, String originalTypeSimpleName, boolean isHavingIdentField, int fieldsCount, boolean isJpa) {
         this.typeKind = b;
         this.typeName = fullTypeName;
         this.originalTypeName = originalTypeName;
@@ -56,6 +57,7 @@ public class FieldType {
         this.originalTypeSimpleName = originalTypeSimpleName;
         this.hasIdentField = isHavingIdentField;
         this.cntFields = fieldsCount;
+        this.isJpa = isJpa;
     }
 
     public String getTypeName() {
@@ -148,14 +150,13 @@ public class FieldType {
     }
     public boolean isString() { return String.class.getTypeName().equals(this.typeName); }
     public boolean isShouldBeCasted() { return this.isShouldBeCasted; }
-
     public boolean isAbstract() {
         return isAbstract;
     }
-
     public boolean isGenericInnerClass() {
         return isGenericInnerClass;
     }
+    public boolean isJpa() { return isJpa; }
 
     public void setGenericInnerClass(boolean isGenericInnerClass) {
         this.isGenericInnerClass = isGenericInnerClass;

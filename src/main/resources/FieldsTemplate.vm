@@ -114,9 +114,9 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
 #if($isNotPrimitive)
 #if($isInnerClass)
                 .put("${currentField}", ${mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeSimpleName()}Fields.class)
-#else
+#elseif($mapOfFieldTypes.contains($mapOfFields.get($field)))
 #set($fieldProviderFullName = $mapOfFieldFiles.get($mapOfFieldTypes.get($mapOfFields.get($field)).getOriginalTypeName()))
-                .put("${currentField}", ${fieldProviderFullName}.class)
+    .put("${currentField}", ${fieldProviderFullName}.class)
 #end#*
 
 
@@ -125,7 +125,7 @@ public class ${className}Fields implements ${fieldsPackage}.IFieldProvider {
 *##if($mapOfFieldTypes.get($mapOfFields.get($field)).isAbstract())
                 // its implementations
 #foreach($polymorphicField in $mapOfFieldTypes.get($mapOfFields.get($field)).getImplementations())
-                   .put("${polymorphicField}", ${polymorphicField}Fields.class)
+                   .put("${polymorphicField}", ${display.capitalize($polymorphicField)}Fields.class)
 #end
 #end
 #end

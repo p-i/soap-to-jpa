@@ -43,6 +43,7 @@ import javax.persistence.Transient;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.ElementCollection;
+import javax.persistence.CollectionTable;
 import javax.annotation.Generated;
 import java.io.Serializable;
 
@@ -58,11 +59,12 @@ import org.springframework.beans.factory.annotation.Autowire;
 @Configurable(autowire = Autowire.BY_TYPE, dependencyCheck = false)
 @Table(name = "${tableNamePrefix}_${className}")
 @Generated(value = "net.pibenchmark.SoapToJpaMojo", date = "${generationDate}", comments = "SoapToJpa Maven plugin")
-public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub {
+public class ${className}JPA #if(${className.equals("UDSElement")}) extends UDFValueMapping #end implements Serializable, ${fieldsPackage}.IJpaStub {
 #end
 
 #if(!${isEmbedded})
 
+#if(!${className.equals("UDSElement")}) #* Hardcoded stuff: don't set ID for UDF realisation *#
     @Id
 #if(!${hasIdentField})
     @GeneratedValue(strategy=GenerationType.AUTO)
@@ -73,6 +75,7 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
     @Override
     public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
     public void set${display.capitalize($identityFieldName)}(${identityFieldType} id) { this._${identityFieldName} = id; }
+#end
 
     // keeps object status: empty or filled with data
     @Column(name="IS_POPULATED")
@@ -121,6 +124,7 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 #elseif(${fieldMap.get($field).isCollection()})
 #if(${fieldMap.get($field).isGenericInnerClass()})
     @ElementCollection
+    @CollectionTable(name = "${tableNamePrefix}_${className.toUpperCase()}_${fieldCamelMap.get($field)}")
 #else
     @OneToMany
     @JoinColumn
@@ -135,7 +139,10 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
 
      Declare field depending on its type. Append default value if necessary
 *##if(!${field.equalsIgnoreCase($identityFieldName)})
-#if(${fieldMap.get($field).isCollection()})
+#if( ${className.equals("UDF")} && ${field.equals("content")} )
+    // hardcoded stuff
+    private java.util.List<UDFValueMapping> _content = com.google.common.collect.Lists.newArrayList();
+#elseif(${fieldMap.get($field).isCollection()})
     private ${fieldMap.get($field).render()}  _${fieldPrefix}${field} = com.google.common.collect.Lists.newArrayList();
 #elseif(${fieldMap.get(${field}).isInnerClass()})
     private ${fieldMap.get($field).render()}  _${fieldPrefix}${field} = new ${fieldMap.get($field).render()}();
@@ -195,7 +202,10 @@ public class ${className}JPA implements Serializable, ${fieldsPackage}.IJpaStub 
     Getters and setters
 *#
 #foreach( $field in $fieldMap.keySet() )
-#if(!${field.equalsIgnoreCase($identityFieldName)})
+#if( ${className.equals("UDF")} && ${field.equals("content")} )
+    public java.util.List<UDFValueMapping> getContent() { return this._content; }
+    public void setContent(java.util.List<UDFValueMapping> val) { this._content = val; }
+#elseif(!${field.equalsIgnoreCase($identityFieldName)})
     ## Getter:
     public ${fieldMap.get($field).render()} get${display.capitalize($field)}() { return this._${fieldPrefix}${field}; }
     ## Setter:

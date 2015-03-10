@@ -193,7 +193,7 @@ public class BuildHelper {
         final String strSimpleType = method.getReturns().getName();
 
         if (PRIMITIVES.contains(strType)) {
-            return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, false, 0);
+            return new FieldType(FieldType.PRIMITIVE, strType, strType, strSimpleType, false, 0, false);
         }
         else if (strType.startsWith(List.class.getTypeName()) || strType.startsWith(Set.class.getTypeName())) {
             final boolean isGenericInner = method.getReturnType().getGenericFullyQualifiedName().contains("$");
@@ -205,8 +205,15 @@ public class BuildHelper {
             final int genericClassFieldsCount = genericClass.getFields().size();
 
             final boolean hasIdentField = recursivelyLookupForIDfield(genericClass, idFieldName);
+            final boolean isJpa = mapInterfaces.containsKey(genericType); // is it JPA or any other class
 
-            final FieldType fieldType = new FieldType(FieldType.COLLECTION, mapInterfaces.get(genericType), genericType, originalSimpleName, hasIdentField, genericClassFieldsCount);
+            final FieldType fieldType = new FieldType(FieldType.COLLECTION,
+                    isJpa ? mapInterfaces.get(genericType) : genericType,
+                    genericType,
+                    originalSimpleName,
+                    hasIdentField,
+                    genericClassFieldsCount,
+                    isJpa);
             fieldType.setGenericInnerClass(isGenericInner);
             return fieldType;
 
@@ -217,7 +224,7 @@ public class BuildHelper {
 
             if (PRIMITIVES.contains(strTypeOfArray)) {
                 // array of primitives
-                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray, strTypeOfArray, false, 0);
+                return new FieldType(FieldType.ARRAY_OF_PRIMITIVES, strTypeOfArray, strTypeOfArray, strTypeOfArray, false, 0, false);
             }
             else if (isArrayTypeIsSubclass) {
                 // array of inner class objects
@@ -226,7 +233,8 @@ public class BuildHelper {
                         strTypeOfArray,
                         strTypeOfArray,
                         false,
-                        0);
+                        0,
+                        false);
             }
             else {
                 // array of complex types
@@ -235,7 +243,8 @@ public class BuildHelper {
                         strTypeOfArray,
                         strTypeOfArray,
                         false,
-                        0);
+                        0,
+                        mapInterfaces.containsKey(strTypeOfArray));
             }
         }
         else {
@@ -249,10 +258,10 @@ public class BuildHelper {
                     log.warn("Can not transfer type " + strType + " to JPA inner class. " +
                             "Probably, this is a class instead of an interface. This field will be omitted.");
                 }
-                return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount);
+                return new FieldType(FieldType.INNER_CLASS, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount, true);
             }
             else {
-                return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount);
+                return new FieldType(FieldType.COMPLEX_TYPE, mapInterfaces.get(strType), strType, strSimpleType, hasIdentField, fieldsCount, true);
             }
         }
     }

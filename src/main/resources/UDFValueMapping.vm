@@ -1,0 +1,21 @@
+package $package;
+
+import javax.persistence.*;
+import javax.persistence.Entity;
+
+/**
+* Created by ilja on 09/03/15.
+*/
+@Entity
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name="DCOL", discriminatorType=DiscriminatorType.STRING)
+public abstract class UDFValueMapping {
+
+    @Id
+    @GeneratedValue(strategy=GenerationType.TABLE)
+    @Column(name="_NUMBER")
+    protected java.lang.Long _number;
+
+    public java.lang.Long getNumber() { return this._number; }
+    public void setNumber(java.lang.Long id) { this._number = id; }
+}

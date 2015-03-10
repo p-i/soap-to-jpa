@@ -114,6 +114,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         Template fieldsTemplate = ve.getTemplate("FieldsTemplate.vm");
         Template fieldProviderTemplate = ve.getTemplate("FieldsInterface.vm");
         Template jpaStubTemplate = ve.getTemplate("JPAInterface.vm");
+        Template udfParent = ve.getTemplate("UDFValueMapping.vm");
 
         try {
 
@@ -133,7 +134,7 @@ public class SoapToJpaMojo extends AbstractMojo {
             final Map<String, String> mapOfFieldFiles = this.buildMapOfFieldProviders();
 
             // write all the JPA classes
-            this.generateJpaClasses(jpaTemplate, mapInterfaces, mapOfConstructors);
+            this.generateJpaClasses(jpaTemplate, udfParent, mapInterfaces, mapOfConstructors);
 
             // write the Field providers
             this.generateFieldProviders(fieldsTemplate, mapInterfaces, mapOfFieldFiles);
@@ -406,7 +407,7 @@ public class SoapToJpaMojo extends AbstractMojo {
      * @throws IOException
      * @throws MojoFailureException
      */
-    private void generateJpaClasses(Template t, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors) throws IOException, MojoFailureException {
+    private void generateJpaClasses(Template t, Template udfParent, Map<String, String> mapInterfaces, Map<String, Set<String>> mapOfConstructors) throws Exception {
         getLog().info("Generation of the JPA objects...");
         int cntCreatedFiles = 0;
         int cntSkippedFiles = 0;
@@ -416,6 +417,11 @@ public class SoapToJpaMojo extends AbstractMojo {
 
                 final String packageName = jc.getPackageName();
                 final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
+
+                if (jc.getName().equals("UDF")) {
+                    // hardcoded stuff. I would be happy to generalize it.
+                    this.generateUDFParenClass(udfParent, packageName);
+                }
 
                 File jpaFile = BuildHelper.getFile(packagePath, jc.getName(), JPA_SUFFIX);
 
@@ -434,6 +440,25 @@ public class SoapToJpaMojo extends AbstractMojo {
             }
         }
         getLog().info(cntCreatedFiles + " files were generated and " + cntSkippedFiles + " were skipped");
+    }
+
+    /**
+     * Write hardcoded file: parent file for UDF collection
+     *
+     * @param udfParent
+     * @throws Exception
+     */
+    private void generateUDFParenClass(Template udfParent, String packageName) throws Exception {
+        final String packagePath = BuildHelper.ensurePackageExists(this.jpaOutputDirectory.getAbsolutePath(), packageName);
+
+        File file = BuildHelper.getFile(packagePath, "UDFValueMapping", "");
+        VelocityContext context = new VelocityContext();
+        context.put("package", packageName);
+
+        StringWriter writer = new StringWriter();
+        udfParent.merge(context, writer );
+
+        BuildHelper.writeContentToFile(writer.toString(), file);
     }
 
     /**

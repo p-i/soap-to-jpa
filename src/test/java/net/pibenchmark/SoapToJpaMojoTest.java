@@ -26,7 +26,7 @@ public class SoapToJpaMojoTest{
     public void testBuildMapOfInnerClassesBelongingToAnotherEntityRightCase() throws Exception {
 
         final  String nameOfParentClass = "com.any.package.ParentFile";
-        final FieldType children = new FieldType(FieldType.INNER_CLASS, "com.any.package.ParentFile.ChildrenJPA", "com.any.package.ParentFile.Children", "Children", false, 1);
+        final FieldType children = new FieldType(FieldType.INNER_CLASS, "com.any.package.ParentFile.ChildrenJPA", "com.any.package.ParentFile.Children", "Children", false, 1, true);
 
         final Map<String, FieldType> output = target.buildMapOfInnerClassesBelongingToAnotherEntity(nameOfParentClass,
                 ImmutableMap.of("children", children));
@@ -39,7 +39,7 @@ public class SoapToJpaMojoTest{
     public void testBuildMapOfInnerClassesBelongingToAnotherEntityWrongCase() throws Exception {
 
         final  String nameOfParentClass = "com.any.package.ParentFile";
-        final FieldType children = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.ChildrenJPA", "com.any.package.AnotherParentFile.Children", "Children", false, 1);
+        final FieldType children = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.ChildrenJPA", "com.any.package.AnotherParentFile.Children", "Children", false, 1, true);
 
         final Map<String, FieldType> output = target.buildMapOfInnerClassesBelongingToAnotherEntity(nameOfParentClass,
                 ImmutableMap.of("children", children));
@@ -53,7 +53,7 @@ public class SoapToJpaMojoTest{
     public void testBuildMapOfInnerClassesBelongingToAnotherEntityWrongCaseForEntity() throws Exception {
 
         final  String nameOfParentClass = "com.any.package.ParentFile";
-        final FieldType children = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.ChildrenJPA", "com.any.package.AnotherParentFile.Children", "Children", true, 1);
+        final FieldType children = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.ChildrenJPA", "com.any.package.AnotherParentFile.Children", "Children", true, 1, true);
 
         final Map<String, FieldType> output = target.buildMapOfInnerClassesBelongingToAnotherEntity(nameOfParentClass,
                 ImmutableMap.of("children", children));
@@ -68,10 +68,10 @@ public class SoapToJpaMojoTest{
         final  String nameOfParentClass = "com.any.package.ParentFile";
 
         // we have one field belonging to this class
-        final FieldType children = new FieldType(FieldType.INNER_CLASS, nameOfParentClass + ".ChildrenJPA", nameOfParentClass + ".Children", "Children", false, 1);
+        final FieldType children = new FieldType(FieldType.INNER_CLASS, nameOfParentClass + ".ChildrenJPA", nameOfParentClass + ".Children", "Children", false, 1, true);
         // and two belonging to another class
-        final FieldType organization = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.OrganizationJPA", "com.any.package.AnotherParentFile.Organization", "Organization", false, 1);
-        final FieldType location = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.LocationJPA", "com.any.package.AnotherParentFile.Location", "Location", false, 1);
+        final FieldType organization = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.OrganizationJPA", "com.any.package.AnotherParentFile.Organization", "Organization", false, 1, true);
+        final FieldType location = new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentFile.LocationJPA", "com.any.package.AnotherParentFile.Location", "Location", false, 1, true);
 
         // When we build map of "strangers" fields...
         final Map<String, FieldType> output = target.buildMapOfInnerClassesBelongingToAnotherEntity(nameOfParentClass,
@@ -120,14 +120,14 @@ public class SoapToJpaMojoTest{
         // Given: there are list of all the fields, one is normal, one is stranger (belongs to another class)
         Map<String, FieldType> mapOfFields = ImmutableMap.of(
                 "anyField",
-                new FieldType(FieldType.INNER_CLASS, "com.any.package.ParentClass.ChildrenJPA", "com.any.package.ParentClass.Children", "Children", false, 1),
+                new FieldType(FieldType.INNER_CLASS, "com.any.package.ParentClass.ChildrenJPA", "com.any.package.ParentClass.Children", "Children", false, 1, true),
                 "anyFieldTwo",
-                new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentClass.ChildrenTwoJPA", "com.any.package.AnotherParentClass.ChildrenTwo", "ChildrenTwo", false, 1));
+                new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentClass.ChildrenTwoJPA", "com.any.package.AnotherParentClass.ChildrenTwo", "ChildrenTwo", false, 1, true));
 
         // ... and list of strangers
         Map<String, FieldType> mapOfStrangers = ImmutableMap.of(
                 "anyFieldTwo",
-                new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentClass.ChildrenTwoJPA", "com.any.package.AnotherParentClass.ChildrenTwo", "ChildrenTwo", false, 1));
+                new FieldType(FieldType.INNER_CLASS, "com.any.package.AnotherParentClass.ChildrenTwoJPA", "com.any.package.AnotherParentClass.ChildrenTwo", "ChildrenTwo", false, 1, true));
 
         // when we change context for stranger fields
         target.modifyContextForStrangerTypes(mapOfFields, mapOfStrangers, "Test");

@@ -20,6 +20,34 @@
         // primitive or array of primitives
         this._${fieldPrefix}${field} = stub.get${capitalizedFieldName}();
         this.cntInitialized++;
+#elseif( ${className.equals("UDF")} && ${field.equals("content")} )#*
+
+        Hardcoded stuff.
+        For UDF value field we need to apply special login. I didn't find
+        a way how to generalyze it, thus, I hardcoced it here:
+*#
+
+        if(null != stub.getContent() && !stub.getContent().isEmpty()) {
+            for (Serializable serializable : stub.getContent()) {
+
+                if (serializable instanceof javax.xml.bind.JAXBElement) {
+                    javax.xml.bind.JAXBElement jaxb = (javax.xml.bind.JAXBElement) serializable;
+
+                    if(jaxb.getDeclaredType().equals(UDSElement.class)) {
+                        UDSElementJPA el = new UDSElementJPA();
+                        el.populate(jaxb.getValue(), mapAcc);
+                        em.persist(el);
+                        this._content.add(el);
+                    }
+                }
+                else if(serializable instanceof java.lang.String) {
+                    // just a string
+                    this._name = serializable.toString();
+                }
+            }
+            this.cntInitialized++;
+        }
+
 #elseif( ${currentField.isArrayOfComplextType()} )#*
 
 
@@ -53,7 +81,9 @@
 #else
             ${currentField.getTypeName()} jpaItem = new ${currentField.getTypeName()}();
 #end
+#if(${currentField.isJpa()})
             jpaItem.populate(stubItem, mapAcc);
+#end
 #if(!${currentField.isGenericInnerClass()})
             em.persist(jpaItem);
 #end
