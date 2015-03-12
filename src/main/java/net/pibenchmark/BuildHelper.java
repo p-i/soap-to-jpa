@@ -79,9 +79,9 @@ public class BuildHelper {
         boolean isGetter;
 
         final List<JavaMethod> lstMethods = jc.getMethods();
-        if (null != jc.getSuperJavaClass()) {
+        /* if (null != jc.getSuperJavaClass()) {
             lstMethods.addAll(jc.getSuperJavaClass().getMethods());
-        }
+        } */
 
         for (JavaMethod method : lstMethods) {
             isGetter = (method.getName().startsWith("get") && method.getParameters().isEmpty());

@@ -116,12 +116,16 @@
             // if it doesn't exist, then create and persist a new one.
             this._${fieldPrefix}${field} = new ${currentField.getTypeName()}();
             this._${fieldPrefix}${field}.populate(stub.get${capitalizedFieldName}(), mapAcc);
+#if(${currentField.hasIdentField()})
             if (null != this._${fieldPrefix}${field}.get${display.capitalize($identityFieldName)}()) {
                 em.persist(this._${fieldPrefix}${field});
             }
             else {
                 this._${fieldPrefix}${field} = null;
             }
+#else
+            em.persist(this._${fieldPrefix}${field}); // doesn't conaint ID field
+#end
         }
         else {
             // otherwise populate existing

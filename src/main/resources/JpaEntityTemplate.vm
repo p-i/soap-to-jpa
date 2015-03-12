@@ -44,6 +44,8 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.ElementCollection;
 import javax.persistence.CollectionTable;
+import javax.persistence.Inheritance;
+import javax.persistence.DiscriminatorColumn;
 import javax.annotation.Generated;
 import java.io.Serializable;
 
@@ -58,23 +60,40 @@ import org.springframework.beans.factory.annotation.Autowire;
 @Entity
 @Configurable(autowire = Autowire.BY_TYPE, dependencyCheck = false)
 @Table(name = "${tableNamePrefix}_${className}")
+@Inheritance(strategy = javax.persistence.InheritanceType.JOINED)
+@DiscriminatorColumn(name="DCOL", discriminatorType = javax.persistence.DiscriminatorType.STRING)
 @Generated(value = "net.pibenchmark.SoapToJpaMojo", date = "${generationDate}", comments = "SoapToJpa Maven plugin")
-public class ${className}JPA #if(${className.equals("UDSElement")}) extends UDFValueMapping #end implements Serializable, ${fieldsPackage}.IJpaStub {
+public class ${className}JPA
+    #if(${className.equals("UDSElement")}) extends UDFValueMapping
+    #else extends ${parentClass} #end
+    implements Serializable, ${fieldsPackage}.IJpaStub {
 #end
 
 #if(!${isEmbedded})
 
 #if(!${className.equals("UDSElement")}) #* Hardcoded stuff: don't set ID for UDF realisation *#
-    @Id
+
 #if(!${hasIdentField})
-    @GeneratedValue(strategy=GenerationType.AUTO)
-#end
+#if(${parentClass.equals("java.lang.Object")})
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name="ID_${identityFieldName.toUpperCase()}")
-    private ${identityFieldType} _${identityFieldName};
+    protected ${identityFieldType} _${identityFieldName};
+    @Override
+    public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
+#else
+    @Override
+    public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return super.get${display.capitalize($identityFieldName)}(); }
+#end
+#else
+    @Id
+    @Column(name="ID_${identityFieldName.toUpperCase()}")
+    protected ${identityFieldType} _${identityFieldName};
 
     @Override
     public ${identityFieldType} get${display.capitalize($identityFieldName)}() { return this._${identityFieldName}; }
     public void set${display.capitalize($identityFieldName)}(${identityFieldType} id) { this._${identityFieldName} = id; }
+#end
 #end
 
     // keeps object status: empty or filled with data
@@ -172,6 +191,10 @@ public class ${className}JPA #if(${className.equals("UDSElement")}) extends UDFV
         // count how many fields are not null
         this.cntInitialized = 0;
         final ${constructors} stub = (${constructors}) stubObject;
+
+#if(!${isEmbedded} && !${parentClass.equals("java.lang.Object")} && !${className.equals("UDSElement")})
+        super.populate(stubObject, mapAcc);
+#end
 
         // initiate all the fields
         #parse("Populate.vm")

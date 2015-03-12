@@ -508,6 +508,11 @@ public class SoapToJpaMojo extends AbstractMojo {
                 .parallelStream()
                 .anyMatch((field) -> field.equalsIgnoreCase(this.fieldNameUsedAsIdentityName));
 
+        //extends
+        final String parentClass = (null == jc.getSuperJavaClass()) ?
+                java.lang.Object.class.getTypeName() :
+                mapInterfaces.getOrDefault(jc.getSuperJavaClass().getGenericFullyQualifiedName(), java.lang.Object.class.getTypeName());
+
 
         VelocityContext context = new VelocityContext();
         context.put("isEmbedded", isEmbedded);
@@ -524,6 +529,7 @@ public class SoapToJpaMojo extends AbstractMojo {
         context.put("tableNamePrefix", this.tableNamePrefix);
         context.put("fieldPrefix", fieldPrefix);
         context.put("hasIdentField", hasIdentField);
+        context.put("parentClass", parentClass);
 
 
         if (isEmbedded) {
